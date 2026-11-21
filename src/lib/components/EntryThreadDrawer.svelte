@@ -10,6 +10,7 @@
   import { goalQuery } from '$lib/queries'
   import { Button } from '$lib/components/ui/button'
   import * as Drawer from '$lib/components/ui/drawer'
+  import ConfirmDialog from './ConfirmDialog.svelte'
   import DrawerCloseButton from './DrawerCloseButton.svelte'
   import ReactionBar from './ReactionBar.svelte'
   import UserAvatar from './UserAvatar.svelte'
@@ -31,6 +32,7 @@
   const canEdit = $derived(!!entry && !goal.archived && (entry.userId === user.id || group.isOwner))
 
   let draft = $state('')
+  let commentToDelete = $state<{ entryId: string; commentId: string } | null>(null)
   let composer = $state<HTMLTextAreaElement | null>(null)
 
   $effect(() => {
@@ -133,7 +135,7 @@
                     class="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground/60 transition-colors hover:bg-secondary hover:text-destructive"
                     aria-label="Delete comment"
                     disabled={remove.isPending}
-                    onclick={() => remove.mutate({ entryId: entry.id, commentId: comment.id })}
+                    onclick={() => (commentToDelete = { entryId: entry.id, commentId: comment.id })}
                   >
                     <Trash2Icon class="size-3.5" />
                   </button>
@@ -162,3 +164,11 @@
     {/if}
   </Drawer.Content>
 </Drawer.Root>
+
+<ConfirmDialog
+  bind:open={() => commentToDelete !== null, (open) => !open && (commentToDelete = null)}
+  title="Delete this comment?"
+  description="Everyone in the group stops seeing it. You cannot undo this."
+  confirmLabel="Delete comment"
+  onConfirm={() => commentToDelete && remove.mutate(commentToDelete)}
+/>

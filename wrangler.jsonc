@@ -6,8 +6,10 @@
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/auth/*", "/join/*"]
+    "run_worker_first": true
   },
+  "routes": [{ "pattern": "tally.ianm.app", "custom_domain": true }],
+  "workers_dev": true,
   "d1_databases": [
     {
       "binding": "DB",

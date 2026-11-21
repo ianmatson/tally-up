@@ -159,6 +159,27 @@
 	}
 }
 
+emoji-picker {
+	width: min(22rem, calc(100vw - 24px));
+	height: 22rem;
+	--background: var(--popover);
+	--border-color: var(--border);
+	--border-size: 0;
+	--border-radius: 1rem;
+	--button-active-background: var(--secondary);
+	--button-hover-background: var(--accent);
+	--category-font-color: var(--muted-foreground);
+	--indicator-color: var(--foreground);
+	--input-border-color: var(--input);
+	--input-border-radius: 999px;
+	--input-font-color: var(--foreground);
+	--input-placeholder-color: var(--muted-foreground);
+	--input-padding: 0.375rem 0.875rem;
+	--outline-color: var(--ring);
+	--emoji-size: 1.5rem;
+	--num-columns: 8;
+}
+
 @keyframes rise-in {
 	from {
 		opacity: 0;

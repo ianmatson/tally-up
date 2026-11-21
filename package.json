@@ -25,6 +25,8 @@
     "@types/node": "^24.19.2",
     "bits-ui": "^2.21.0",
     "cn": "^0.5.2",
+    "emoji-picker-element": "^1.29.1",
+    "emoji-picker-element-data": "^1.8.0",
     "mode-watcher": "^1.1.0",
     "shadcn-svelte": "^1.8.1",
     "svelte": "^5.57.3",

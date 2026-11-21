@@ -1,5 +1,5 @@
-export const REACTIONS = ['👍', '🔥', '💪', '👏', '🎉', '😂', '❤️', '😮'] as const
+export const QUICK_REACTIONS = ['👍', '🔥', '💪', '👏', '🎉', '😂', '❤️', '😮'] as const
 
-export type ReactionEmoji = (typeof REACTIONS)[number]
+const REDUNDANT_VARIATION_SELECTOR = /^(\p{Emoji_Presentation})️$/u
 
-export const isReaction = (value: string): value is ReactionEmoji => (REACTIONS as readonly string[]).includes(value)
+export const normalizeReaction = (emoji: string) => emoji.replace(REDUNDANT_VARIATION_SELECTOR, '$1')

@@ -9,6 +9,7 @@
   import { goalQuery } from '$lib/queries'
   import { Button } from '$lib/components/ui/button'
   import * as Drawer from '$lib/components/ui/drawer'
+  import ConfirmDialog from './ConfirmDialog.svelte'
   import DrawerCloseButton from './DrawerCloseButton.svelte'
   import { Input } from '$lib/components/ui/input'
   import { Label } from '$lib/components/ui/label'
@@ -29,6 +30,7 @@
   let when = $state('')
   let latestWhen = $state('')
   let note = $state('')
+  let confirmDelete = $state(false)
 
   function resetDraft() {
     componentId = entry?.componentId ?? goal.components[0]?.id ?? ''
@@ -141,7 +143,7 @@
             size="lg"
             class="h-12"
             disabled={remove.isPending}
-            onclick={() => remove.mutate(entry.id)}
+            onclick={() => (confirmDelete = true)}
           >
             Delete entry
           </Button>
@@ -150,3 +152,13 @@
     </form>
   </Drawer.Content>
 </Drawer.Root>
+
+{#if entry}
+  <ConfirmDialog
+    bind:open={confirmDelete}
+    title="Delete this entry?"
+    description="It is removed from the group totals, along with its comments and reactions. You cannot undo this."
+    confirmLabel="Delete entry"
+    onConfirm={() => remove.mutate(entry.id)}
+  />
+{/if}

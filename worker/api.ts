@@ -18,7 +18,7 @@ import type {
 } from '../shared/api'
 import { todayIn } from '../shared/dates'
 import { firstName, formatNumber } from '../shared/format'
-import { isReaction } from '../shared/social'
+import { normalizeReaction } from '../shared/social'
 import type { AppEnv } from './auth'
 import { notifyUsers, type PushPayload } from './notifications'
 import {
@@ -479,9 +479,11 @@ api.delete('/comments/:commentId', async (c) => {
   return c.body(null, 204)
 })
 
+const SINGLE_EMOJI = new RegExp('^\\p{RGI_Emoji}$', 'v')
+
 function reactionEmoji(c: Context<AppEnv>): string {
-  const emoji = c.req.param('emoji') ?? ''
-  if (!isReaction(emoji)) badRequest('That reaction is not available')
+  const emoji = normalizeReaction(c.req.param('emoji') ?? '')
+  if (!SINGLE_EMOJI.test(emoji)) badRequest('Reactions must be a single emoji')
   return emoji
 }
 

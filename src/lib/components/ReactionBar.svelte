@@ -1,13 +1,15 @@
 <script lang="ts">
+  import PlusIcon from '@lucide/svelte/icons/plus'
   import SmilePlusIcon from '@lucide/svelte/icons/smile-plus'
   import { createMutation, useQueryClient } from '@tanstack/svelte-query'
   import type { Entry, GoalDetail, Member } from '$shared/api'
-  import { REACTIONS } from '$shared/social'
+  import { normalizeReaction, QUICK_REACTIONS } from '$shared/social'
   import { api } from '$lib/api'
   import { memberLabel } from '$lib/format'
   import { goalQuery } from '$lib/queries'
   import { withReaction } from '$lib/social'
   import * as Popover from '$lib/components/ui/popover'
+  import EmojiPicker from './EmojiPicker.svelte'
   import { cn } from '$lib/utils'
 
   let { entry, goalId, userId, membersById }: {
@@ -19,6 +21,7 @@
 
   const queryClient = useQueryClient()
   let pickerOpen = $state(false)
+  let showAll = $state(false)
 
   const toggle = createMutation(() => ({
     mutationFn: ({ emoji, on }: { emoji: string; on: boolean }) =>
@@ -38,6 +41,11 @@
 
   const mine = (emoji: string) => entry.reactions.some((r) => r.emoji === emoji && r.userIds.includes(userId))
   const react = (emoji: string) => toggle.mutate({ emoji, on: !mine(emoji) })
+
+  function pick(emoji: string) {
+    if (emoji) react(normalizeReaction(emoji))
+    pickerOpen = false
+  }
   const names = (ids: string[]) => ids.map((id) => memberLabel(membersById, id, userId)).join(', ')
 </script>
 
@@ -59,30 +67,41 @@
       <span class="tabular text-xs font-semibold">{reaction.userIds.length}</span>
     </button>
   {/each}
-  <Popover.Root bind:open={pickerOpen}>
+  <Popover.Root bind:open={pickerOpen} onOpenChange={(open) => open && (showAll = false)}>
     <Popover.Trigger
       class="grid h-7 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground data-[state=open]:bg-secondary"
       aria-label="Add a reaction"
     >
       <SmilePlusIcon class="size-4" />
     </Popover.Trigger>
-    <Popover.Content align="start" collisionPadding={12} class="w-auto flex-row gap-0.5 rounded-full p-1">
-      {#each REACTIONS as emoji (emoji)}
-        <button
-          type="button"
-          class={cn(
-            'grid size-8 place-items-center rounded-full text-lg transition-transform duration-150 ease-spring hover:scale-110 hover:bg-accent active:scale-95',
-            mine(emoji) && 'bg-highlight',
-          )}
-          aria-label={mine(emoji) ? `Remove ${emoji}` : `React with ${emoji}`}
-          onclick={() => {
-            react(emoji)
-            pickerOpen = false
-          }}
-        >
-          {emoji}
-        </button>
-      {/each}
+    <Popover.Content align="start" collisionPadding={12} class={cn('w-auto rounded-full p-1', showAll && 'overflow-hidden rounded-2xl p-0')}>
+      {#if showAll}
+        <EmojiPicker onPick={pick} />
+      {:else}
+        <div class="flex gap-0.5">
+          {#each QUICK_REACTIONS as emoji (emoji)}
+            <button
+              type="button"
+              class={cn(
+                'grid size-8 place-items-center rounded-full text-lg transition-transform duration-150 ease-spring hover:scale-110 hover:bg-accent active:scale-95',
+                mine(emoji) && 'bg-highlight',
+              )}
+              aria-label={mine(emoji) ? `Remove ${emoji}` : `React with ${emoji}`}
+              onclick={() => pick(emoji)}
+            >
+              {emoji}
+            </button>
+          {/each}
+          <button
+            type="button"
+            class="grid size-8 place-items-center rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="More emoji"
+            onclick={() => (showAll = true)}
+          >
+            <PlusIcon class="size-4" />
+          </button>
+        </div>
+      {/if}
     </Popover.Content>
   </Popover.Root>
 </div>

@@ -6,10 +6,18 @@ import { type AppEnv, auth, loadUser } from './auth'
 import { invitePage } from './invite-page'
 import { sendReminders } from './notifications'
 
+const CANONICAL_ORIGIN = 'https://tally.ianm.app'
+const LEGACY_HOST_SUFFIX = '.workers.dev'
+
 const app = new Hono<AppEnv>()
 
+app.use(async (c, next) => {
+  const url = new URL(c.req.url)
+  if (!url.hostname.endsWith(LEGACY_HOST_SUFFIX)) return next()
+  return c.redirect(`${CANONICAL_ORIGIN}${url.pathname}${url.search}`, 301)
+})
 app.use(csrf())
-app.use(loadUser)
+app.use('/api/*', loadUser)
 app.route('/auth', auth)
 app.route('/api', api)
 app.get('/join/:code', invitePage)

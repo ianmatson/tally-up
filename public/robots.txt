@@ -5,4 +5,4 @@ Disallow: /auth/
 Disallow: /g/
 Disallow: /join/
 
-Sitemap: https://tally-up.imatson9119.workers.dev/sitemap.xml
+Sitemap: https://tally.ianm.app/sitemap.xml

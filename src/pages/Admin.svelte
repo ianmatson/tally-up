@@ -8,6 +8,7 @@
   import type { GoalDetail, GoalInput, GroupDetail, Member } from '$shared/api'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
   import GoalForm from '$lib/components/GoalForm.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
   import * as AlertDialog from '$lib/components/ui/alert-dialog'
@@ -196,28 +197,13 @@
   </Card.Root>
 </div>
 
-<AlertDialog.Root open={memberToRemove !== null} onOpenChange={(open) => !open && (memberToRemove = null)}>
-  <AlertDialog.Content>
-    <AlertDialog.Header>
-      <AlertDialog.Title>Remove {memberToRemove?.name}?</AlertDialog.Title>
-      <AlertDialog.Description>
-        This also deletes everything they logged, commented and reacted in this group. They can join again with the invite link.
-      </AlertDialog.Description>
-    </AlertDialog.Header>
-    <AlertDialog.Footer>
-      <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-      <AlertDialog.Action
-        variant="destructive"
-        onclick={() => {
-          if (memberToRemove) removeMember.mutate(memberToRemove.id)
-          memberToRemove = null
-        }}
-      >
-        Remove
-      </AlertDialog.Action>
-    </AlertDialog.Footer>
-  </AlertDialog.Content>
-</AlertDialog.Root>
+<ConfirmDialog
+  bind:open={() => memberToRemove !== null, (open) => !open && (memberToRemove = null)}
+  title="Remove {memberToRemove?.name}?"
+  description="This also deletes everything they logged, commented and reacted in this group. They can join again with the invite link."
+  confirmLabel="Remove"
+  onConfirm={() => memberToRemove && removeMember.mutate(memberToRemove.id)}
+/>
 
 <AlertDialog.Root bind:open={confirmResetInvite}>
   <AlertDialog.Content>
