@@ -14,12 +14,24 @@
   import { formatMembers, initials } from '$lib/format'
   import { greeting } from '$lib/greeting'
   import { groupsQuery } from '$lib/queries'
+  import { readLastGroup } from '$lib/last-group'
   import { navigate } from '$lib/router.svelte'
 
-  let { user }: { user: User } = $props()
+  let { user, pickGroup }: { user: User; pickGroup: boolean } = $props()
 
   const queryClient = useQueryClient()
   const groups = createQuery(groupsQuery)
+  const autoOpenGroupId = $derived.by(() => {
+    if (pickGroup || groups.isFetching || !groups.data?.length) return null
+    const last = readLastGroup()
+    return groups.data.some((g) => g.id === last) ? last : groups.data[0].id
+  })
+
+  const waitingToOpen = $derived(!pickGroup && !!groups.data?.length)
+
+  $effect(() => {
+    if (autoOpenGroupId) navigate(`/g/${autoOpenGroupId}`, { replace: true })
+  })
   let newGroupName = $state('')
 
   const createGroup = createMutation(() => ({
@@ -47,7 +59,7 @@
 
   <section class="flex flex-col gap-2" aria-labelledby="groups-heading">
     <h2 id="groups-heading" class="text-sm font-medium text-muted-foreground">Your groups</h2>
-    {#if groups.isPending}
+    {#if groups.isPending || waitingToOpen}
       <Skeleton class="h-[4.5rem] rounded-card" />
       <Skeleton class="h-[4.5rem] rounded-card" />
     {:else if groups.isError}

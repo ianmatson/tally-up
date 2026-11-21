@@ -1,17 +1,22 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query'
+  import { untrack } from 'svelte'
   import type { Entry, User } from '$shared/api'
   import { todayIn } from '$shared/dates'
   import EntryDrawer from '$lib/components/EntryDrawer.svelte'
+  import EntryThreadDrawer from '$lib/components/EntryThreadDrawer.svelte'
+  import MembersDrawer from '$lib/components/MembersDrawer.svelte'
   import AppHeader from '$lib/components/AppHeader.svelte'
   import BottomNav from '$lib/components/BottomNav.svelte'
   import { isNotFound } from '$lib/api'
   import LoadError from '$lib/components/LoadError.svelte'
   import { Skeleton } from '$lib/components/ui/skeleton'
+  import { rememberLastGroup } from '$lib/last-group'
   import { goalQuery, groupQuery } from '$lib/queries'
-  import { GROUP_TABS, type GroupTab, groupTabHref, router } from '$lib/router.svelte'
+  import { GROUP_TABS, type GroupTab, groupTabHref, navigate, router } from '$lib/router.svelte'
   import Admin from './Admin.svelte'
   import Dashboard from './Dashboard.svelte'
+  import Feed from './Feed.svelte'
   import History from './History.svelte'
   import Leaderboard from './Leaderboard.svelte'
   import NotFound from './NotFound.svelte'
@@ -34,19 +39,53 @@
     return () => clearInterval(timer)
   })
 
+  $effect(() => {
+    if (group.data) rememberLastGroup(group.data.id)
+  })
+
   const today = $derived(group.data ? todayIn(group.data.timezone, now) : '')
   const canLog = $derived(!!currentGoal.data && today >= currentGoal.data.startDate)
 
   let drawerOpen = $state(false)
   let editingEntry = $state<Entry | null>(null)
+  let threadOpen = $state(false)
+  let threadEntryId = $state<string | null>(null)
+  let threadFocus = $state(false)
+  let membersOpen = $state(false)
+
+  const threadEntry = $derived(viewedGoal.data?.entries.find((e) => e.id === threadEntryId) ?? null)
 
   function openLog(entry: Entry | null = null) {
     editingEntry = entry
     drawerOpen = true
   }
 
+  function openThread(entry: Entry, focusComposer: boolean) {
+    threadEntryId = entry.id
+    threadFocus = focusComposer
+    threadOpen = true
+  }
+
+  function editFromThread(entry: Entry) {
+    threadOpen = false
+    openLog(entry)
+  }
+
+  $effect(() => {
+    const linkedEntryId = router.url.searchParams.get('entry')
+    if (!linkedEntryId || !viewedGoalId) return
+    untrack(() => viewedGoal.refetch()).then(({ data, isSuccess }) => {
+      if (!isSuccess) return
+      const entry = data.entries.find((e) => e.id === linkedEntryId)
+      if (entry) openThread(entry, false)
+      const url = new URL(router.url)
+      url.searchParams.delete('entry')
+      navigate(url.pathname + url.search, { replace: true })
+    })
+  })
+
   const navItems = $derived(
-    GROUP_TABS.filter((t) => !t.ownerOnly || group.data?.isOwner).map((t) => ({
+    GROUP_TABS.filter((t) => t.inNav).map((t) => ({
       id: t.id,
       label: t.navLabel,
       href: groupTabHref(groupId, t),
@@ -79,7 +118,17 @@
     {:else if tabGoal?.isError && !tabGoal.data}
       <LoadError message="Could not load this goal." onRetry={() => tabGoal.refetch()} />
     {:else if tab === 'dashboard'}
-      <Dashboard group={group.data} goal={viewedGoal.data ?? null} {now} {user} {canLog} onLog={openLog} />
+      <Dashboard
+        group={group.data}
+        goal={viewedGoal.data ?? null}
+        {now}
+        {user}
+        {canLog}
+        onOpen={openThread}
+        onShowMembers={() => (membersOpen = true)}
+      />
+    {:else if tab === 'feed'}
+      <Feed group={group.data} goal={viewedGoal.data ?? null} {now} {user} {canLog} onOpen={openThread} />
     {:else if tab === 'leaderboard'}
       <Leaderboard group={group.data} goal={viewedGoal.data ?? null} {today} {user} />
     {:else if tab === 'history'}
@@ -95,5 +144,20 @@
 
   {#if currentGoal.data}
     <EntryDrawer bind:open={drawerOpen} goal={currentGoal.data} {today} entry={editingEntry} />
+  {/if}
+  {#if group.data && viewedGoal.data}
+    <EntryThreadDrawer
+      bind:open={threadOpen}
+      entry={threadEntry}
+      goal={viewedGoal.data}
+      group={group.data}
+      {user}
+      {now}
+      focusComposer={threadFocus}
+      onEdit={editFromThread}
+    />
+  {/if}
+  {#if group.data}
+    <MembersDrawer bind:open={membersOpen} group={group.data} {user} />
   {/if}
 {/if}

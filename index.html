@@ -7,6 +7,12 @@
     <meta name="description" content="Set a shared workout goal with your friends, log every rep and mile, and always know if the crew is on pace. Free for friend groups." />
     <link rel="canonical" href="https://tally-up.imatson9119.workers.dev/" />
     <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        var accent = localStorage.getItem('tally-up:accent')
+        if (/^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--highlight', accent)
+      } catch (e) {}
+    </script>
     <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest?v=2" />

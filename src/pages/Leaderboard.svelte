@@ -2,19 +2,33 @@
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
   import HatchTrack from '$lib/components/HatchTrack.svelte'
+  import ProgressChart from '$lib/components/ProgressChart.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
-  import { formatNumber, formatPercent, formatPoints, formatWeight } from '$lib/format'
-  import { entriesInPeriod, memberScores, type Period, PERIOD_OPTIONS, rankBy } from '$lib/progress'
+  import { firstName, formatNumber, formatPercent, formatPoints, formatWeight } from '$lib/format'
+  import { daysBetween } from '$shared/dates'
+  import {
+    cumulativeByMember,
+    dateRange,
+    entriesInPeriod,
+    memberScores,
+    type Period,
+    PERIOD_OPTIONS,
+    periodRange,
+    rankBy,
+    targetPoints,
+  } from '$lib/progress'
   import { cn } from '$lib/utils'
 
   const OVERALL = 'overall'
+  const PALETTE_SIZE = 8
 
   let { group, goal, today, user }: { group: GroupDetail; goal: GoalDetail | null; today: string; user: User } = $props()
 
   let period = $state<Period>('all')
   let view = $state(OVERALL)
   let expanded = $state<string | null>(null)
+  let hovered = $state<string | null>(null)
 
   const entries = $derived(goal ? entriesInPeriod(goal, today, period) : [])
   const scores = $derived(goal ? memberScores(group.members, goal.components, entries) : [])
@@ -27,6 +41,40 @@
       (goal?.components ?? []).map((c) => [c.id, scores.reduce((sum, s) => sum + s.byComponent[c.id].amount, 0)]),
     ),
   )
+  const colors = $derived(
+    new Map(group.members.map((m, i) => [m.id, i < PALETTE_SIZE ? `var(--series-${i + 1})` : 'var(--series-other)'])),
+  )
+  const memberColor = (memberId: string) => colors.get(memberId)!
+
+  const days = $derived.by(() => {
+    if (!goal) return []
+    const { start, end } = periodRange(goal, today, period)
+    return dateRange(start, end)
+  })
+  const weights = $derived(new Map(goal?.components.map((c) => [c.id, c.weight]) ?? []))
+  const chartSeries = $derived.by(() => {
+    const valueOf = (e: (typeof entries)[number]) =>
+      selectedComponent ? (e.componentId === selectedComponent.id ? e.amount : 0) : e.amount * weights.get(e.componentId)!
+    const totals = cumulativeByMember(group.members, entries, days, valueOf)
+    return group.members.map((m) => ({
+      id: m.id,
+      name: m.id === user.id ? 'You' : firstName(m.name),
+      color: memberColor(m.id),
+      values: totals.get(m.id) ?? [],
+    }))
+  })
+  const evenShare = $derived.by(() => {
+    if (!goal || period !== 'all' || days.length === 0) return null
+    const groupTarget = selectedComponent ? selectedComponent.target : targetPoints(goal.components)
+    const share = groupTarget / group.members.length
+    const goalDays = daysBetween(goal.startDate, goal.endDate) + 1
+    return days.map((_, i) => (share * (i + 1)) / goalDays)
+  })
+  const chartFormat = (n: number) => (selectedComponent ? formatNumber(n) : formatPoints(n))
+  const chartLabel = $derived(
+    `Cumulative ${selectedComponent ? `${selectedComponent.name.toLowerCase()} (${selectedComponent.unit})` : 'points'} by member`,
+  )
+
   const viewOptions = $derived([
     { value: OVERALL, label: 'Overall' },
     ...(goal?.components.map((c) => ({ value: c.id, label: c.name })) ?? []),
@@ -51,12 +99,42 @@
       <PillTabs bind:value={view} label="Ranking" size="md" options={viewOptions} />
     </div>
 
+    {#if days.length > 0}
+      <section class="rise-in mb-3 rounded-card bg-card p-4 sm:p-5" aria-labelledby="chart-heading">
+        <div class="mb-3 flex items-baseline justify-between gap-3">
+          <h2 id="chart-heading" class="font-semibold tracking-tight">Progress over time</h2>
+          <span class="text-xs text-muted-foreground">
+            {selectedComponent ? `${selectedComponent.name} (${selectedComponent.unit})` : 'Points'}{evenShare ? '' : ' · last 7 days'}
+          </span>
+        </div>
+        <ProgressChart
+          {days}
+          series={chartSeries}
+          reference={evenShare}
+          format={chartFormat}
+          label={chartLabel}
+          focusId={hovered ?? expanded}
+          highlightId={user.id}
+        />
+        {#if evenShare}
+          <p class="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <span class="w-4 border-t-[1.5px] border-dashed border-muted-foreground"></span>
+            Even share: where each person would be if everyone did an equal part
+          </p>
+        {/if}
+      </section>
+    {/if}
+
     <ol class="rise-in flex flex-col gap-2">
       {#each rows as row (row.item.member.id)}
         {@const member = row.item.member}
         {@const isMe = member.id === user.id}
         {@const isOpen = expanded === member.id && !selectedComponent}
-        <li class={cn('overflow-hidden rounded-card bg-card', isMe && 'ring-2 ring-highlight')}>
+        <li
+          class={cn('overflow-hidden rounded-card bg-card', isMe && 'ring-2 ring-highlight')}
+          onpointerenter={() => (hovered = member.id)}
+          onpointerleave={() => (hovered = null)}
+        >
           <button
             class="flex w-full items-center gap-3 px-4 py-3.5 text-left disabled:cursor-default"
             aria-expanded={selectedComponent ? undefined : isOpen}
@@ -64,6 +142,7 @@
             onclick={() => (expanded = isOpen ? null : member.id)}
           >
             <span class="tabular w-5 shrink-0 text-center text-sm font-semibold text-muted-foreground">{row.rank}</span>
+            <span class="h-[3px] w-3 shrink-0 rounded-full" style="background: {memberColor(member.id)}" aria-hidden="true"></span>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} tone={isMe ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
               <div class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}</div>

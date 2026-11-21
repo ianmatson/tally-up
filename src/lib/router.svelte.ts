@@ -24,10 +24,11 @@ document.addEventListener('click', (event) => {
 })
 
 export const GROUP_TABS = [
-  { id: 'dashboard', path: '', navLabel: 'Home', title: 'Home', ownerOnly: false },
-  { id: 'leaderboard', path: 'leaderboard', navLabel: 'Leaders', title: 'Leaderboard', ownerOnly: false },
-  { id: 'history', path: 'history', navLabel: 'History', title: 'History', ownerOnly: false },
-  { id: 'admin', path: 'admin', navLabel: 'Admin', title: 'Admin', ownerOnly: true },
+  { id: 'dashboard', path: '', navLabel: 'Home', title: 'Home', inNav: true },
+  { id: 'feed', path: 'feed', navLabel: 'Feed', title: 'Feed', inNav: true },
+  { id: 'leaderboard', path: 'leaderboard', navLabel: 'Leaders', title: 'Leaderboard', inNav: true },
+  { id: 'history', path: 'history', navLabel: 'History', title: 'History', inNav: true },
+  { id: 'admin', path: 'admin', navLabel: 'Admin', title: 'Admin', inNav: false },
 ] as const
 
 export type GroupTab = (typeof GROUP_TABS)[number]['id']
@@ -37,6 +38,8 @@ export const groupTabHref = (groupId: string, tab: (typeof GROUP_TABS)[number]) 
 
 export type Route =
   | { name: 'home' }
+  | { name: 'groups' }
+  | { name: 'settings' }
   | { name: 'join'; code: string }
   | { name: 'group'; groupId: string; tab: GroupTab }
   | { name: 'not-found' }
@@ -44,6 +47,8 @@ export type Route =
 export function resolveRoute(pathname: string): Route {
   const segments = pathname.split('/').filter(Boolean)
   if (segments.length === 0) return { name: 'home' }
+  if (segments[0] === 'groups' && segments.length === 1) return { name: 'groups' }
+  if (segments[0] === 'settings' && segments.length === 1) return { name: 'settings' }
   if (segments[0] === 'join' && segments.length === 2) return { name: 'join', code: segments[1] }
   if (segments[0] === 'g' && (segments.length === 2 || segments.length === 3)) {
     const tab = GROUP_TABS.find((t) => t.path === (segments[2] ?? ''))

@@ -7,6 +7,7 @@
   import Home from './pages/Home.svelte'
   import Join from './pages/Join.svelte'
   import NotFound from './pages/NotFound.svelte'
+  import Settings from './pages/Settings.svelte'
   import SignIn from './pages/SignIn.svelte'
 
   const me = createQuery(meQuery)
@@ -25,8 +26,10 @@
   </main>
 {:else if !me.data}
   <SignIn />
-{:else if route.name === 'home'}
-  <Home user={me.data} />
+{:else if route.name === 'home' || route.name === 'groups'}
+  <Home user={me.data} pickGroup={route.name === 'groups'} />
+{:else if route.name === 'settings'}
+  <Settings user={me.data} />
 {:else if route.name === 'join'}
   <Join code={route.code} />
 {:else if route.name === 'group'}

@@ -2,34 +2,35 @@
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
   import type { Entry, GoalDetail, GroupDetail, User } from '$shared/api'
   import { daysBetween } from '$shared/dates'
+  import ActivityItem from '$lib/components/ActivityItem.svelte'
   import CountUp from '$lib/components/CountUp.svelte'
   import HatchTrack from '$lib/components/HatchTrack.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
   import TallyGlyph from '$lib/components/TallyGlyph.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
   import { Button } from '$lib/components/ui/button'
-  import { dayWord, formatDayLabel, formatDays, formatNumber, formatPercent, formatPoints, roundDays } from '$lib/format'
+  import { dayWord, formatDays, formatMembers, formatNumber, formatPercent, formatPoints, roundDays } from '$lib/format'
   import { greeting } from '$lib/greeting'
   import { entriesInPeriod, goalProgress, memberScores, type Period, PERIOD_OPTIONS, rankBy } from '$lib/progress'
 
-  const ACTIVITY_PAGE_SIZE = 6
+  const ACTIVITY_PREVIEW = 5
+  const MEMBER_STACK = 4
   const LEADER_PREVIEW = 3
   const TILE_LABEL = 'text-[0.8rem]'
   const TILE_VALUE = 'mt-3 flex items-baseline gap-1.5 text-[2.6rem] leading-none font-semibold tracking-[-0.04em] sm:text-5xl'
   const TILE_UNIT = 'text-sm font-medium tracking-normal opacity-70'
 
-  let { group, goal, now, user, canLog, onLog }: {
+  let { group, goal, now, user, canLog, onOpen, onShowMembers }: {
     group: GroupDetail
     goal: GoalDetail | null
     now: Date
     user: User
     canLog: boolean
-    onLog: (entry?: Entry | null) => void
+    onOpen: (entry: Entry, focusComposer: boolean) => void
+    onShowMembers: () => void
   } = $props()
 
-  let activityScope = $state<'mine' | 'everyone'>('mine')
   let leaderPeriod = $state<Period>('all')
-  let activityLimit = $state(ACTIVITY_PAGE_SIZE)
 
   const progress = $derived(goal ? goalProgress(goal, group.timezone, now) : null)
   const componentsById = $derived(new Map(goal?.components.map((c) => [c.id, c]) ?? []))
@@ -45,16 +46,9 @@
     const me = ranked.find((r) => r.item.member.id === user.id)
     return me && !top.includes(me) ? [...top, me] : top
   })
-  const activity = $derived(goal?.entries.filter((e) => activityScope === 'everyone' || e.userId === user.id) ?? [])
-  const activityByDay = $derived(groupByDate(activity.slice(0, activityLimit)))
-  const canEdit = (entry: Entry) => !!goal && !goal.archived && (entry.userId === user.id || group.isOwner)
-  const leaderboardHref = $derived(`/g/${group.id}/leaderboard${goal?.archived ? `?goal=${goal.id}` : ''}`)
-
-  function groupByDate(entries: Entry[]): [string, Entry[]][] {
-    const days = new Map<string, Entry[]>()
-    for (const entry of entries) days.set(entry.date, [...(days.get(entry.date) ?? []), entry])
-    return [...days]
-  }
+  const goalQueryString = $derived(goal?.archived ? `?goal=${goal.id}` : '')
+  const leaderboardHref = $derived(`/g/${group.id}/leaderboard${goalQueryString}`)
+  const feedHref = $derived(`/g/${group.id}/feed${goalQueryString}`)
 
   function subtitle(): string {
     if (!goal || !progress) return ''
@@ -65,9 +59,26 @@
 </script>
 
 <div class="mx-auto max-w-xl lg:max-w-none">
-  <div class="rise-in pt-4 pb-5">
-    <h1 class="page-title">{greeting(user.name, now)}</h1>
-    {#if goal}<p class="mt-0.5 text-sm text-muted-foreground">{subtitle()}</p>{/if}
+  <div class="rise-in flex items-end justify-between gap-3 pt-4 pb-5">
+    <div class="min-w-0">
+      <h1 class="page-title">{greeting(user.name, now)}</h1>
+      {#if goal}<p class="mt-0.5 text-sm text-muted-foreground">{subtitle()}</p>{/if}
+    </div>
+    <button
+      type="button"
+      class="flex shrink-0 items-center gap-2 rounded-full bg-card py-1 pr-3 pl-1 text-xs font-medium transition-colors hover:bg-accent"
+      aria-label="Show {formatMembers(group.members.length)}"
+      onclick={onShowMembers}
+    >
+      <span class="flex -space-x-1">
+        {#each group.members.slice(0, MEMBER_STACK) as member (member.id)}
+          <span class="rounded-full ring-2 ring-card">
+            <UserAvatar name={member.name} avatarUrl={member.avatarUrl} size="sm" tone={member.id === user.id ? 'highlight' : 'muted'} />
+          </span>
+        {/each}
+      </span>
+      <span class="tabular">{group.members.length}</span>
+    </button>
   </div>
 
   {#if !goal || !progress}
@@ -92,8 +103,8 @@
     {/if}
 
     <div class="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start lg:gap-4">
-      <div class="flex flex-col gap-3 lg:gap-4">
-        <div class="grid grid-cols-2 gap-3 lg:gap-4">
+      <div class="flex flex-col gap-3 max-lg:contents lg:gap-4">
+        <div class="grid grid-cols-2 gap-3 max-lg:order-1 lg:gap-4">
           <div class="rise-in rounded-card bg-card p-4 sm:p-5">
             <div class="{TILE_LABEL} text-muted-foreground">Complete</div>
             <div class={TILE_VALUE}>
@@ -120,7 +131,7 @@
           </div>
         </div>
 
-        <section class="rise-in rounded-card bg-card p-4 [animation-delay:120ms] sm:p-5" aria-label="Group goal">
+        <section class="rise-in rounded-card bg-card p-4 [animation-delay:120ms] max-lg:order-2 sm:p-5" aria-label="Group goal">
           <div class="mb-4 flex items-center justify-between gap-3">
             <h2 class="font-semibold tracking-tight">Group goal</h2>
             {#if progress.phase === 'active'}
@@ -167,7 +178,7 @@
           {/if}
         </section>
 
-        <section class="rise-in rounded-card bg-card p-4 [animation-delay:180ms] sm:p-5" aria-label="Leaderboard">
+        <section class="rise-in rounded-card bg-card p-4 [animation-delay:180ms] max-lg:order-4 sm:p-5" aria-label="Leaderboard">
           <div class="mb-3 flex items-center justify-between gap-3">
             <a href={leaderboardHref} class="flex items-center gap-1 font-semibold tracking-tight">
               Leaderboard <ChevronRightIcon class="size-4 text-muted-foreground" />
@@ -188,68 +199,40 @@
         </section>
       </div>
 
-      <section class="rise-in rounded-card bg-card p-4 [animation-delay:220ms] sm:p-5" aria-label="Activity">
-          <div class="mb-2 flex items-center justify-between gap-3">
-            <h2 class="font-semibold tracking-tight">Activity</h2>
-            <PillTabs
-              bind:value={activityScope}
-              label="Activity filter"
-              options={[{ value: 'mine', label: 'Mine' }, { value: 'everyone', label: 'Everyone' }]}
-            />
-          </div>
+      <section class="rise-in rounded-card bg-card p-4 [animation-delay:150ms] max-lg:order-3 sm:p-5" aria-label="Recent activity">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <a href={feedHref} class="flex items-center gap-1 font-semibold tracking-tight">
+            Recent activity <ChevronRightIcon class="size-4 text-muted-foreground" />
+          </a>
+        </div>
 
-          {#if activity.length === 0}
-            <p class="py-6 text-center text-sm text-muted-foreground">
-              {activityScope === 'everyone' ? 'Nobody has logged anything yet.' : canLog && !goal.archived ? 'Nothing logged yet. Tap + to add your first tally.' : 'You did not log anything.'}
-            </p>
-          {/if}
+        {#if goal.entries.length === 0}
+          <p class="py-6 text-center text-sm text-muted-foreground">
+            {canLog && !goal.archived ? 'Nothing logged yet. Tap + to add the first tally.' : 'Nothing was logged.'}
+          </p>
+        {/if}
 
-          {#each activityByDay as [date, entries] (date)}
-            <h3 class="mt-3 mb-1 text-xs font-medium text-muted-foreground">{formatDayLabel(date, progress.today)}</h3>
-            <ul class="-mx-2 flex flex-col">
-              {#each entries as entry (entry.id)}
-                {@const component = componentsById.get(entry.componentId)}
-                <li>
-                  {#if canEdit(entry)}
-                    <button
-                      class="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-accent active:bg-accent"
-                      aria-label="Edit {formatNumber(entry.amount)} {component?.unit} {component?.name}"
-                      onclick={() => onLog(entry)}
-                    >
-                      {@render entryRow(entry)}
-                      <ChevronRightIcon class="size-4 shrink-0 text-muted-foreground" />
-                    </button>
-                  {:else}
-                    <div class="flex items-center gap-3 px-2 py-2">{@render entryRow(entry)}</div>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
+        <ul class="flex flex-col divide-y">
+          {#each goal.entries.slice(0, ACTIVITY_PREVIEW) as entry (entry.id)}
+            <li class="py-3 first:pt-0 last:pb-0">
+              <ActivityItem
+                {entry}
+                component={componentsById.get(entry.componentId)}
+                goalId={goal.id}
+                userId={user.id}
+                {membersById}
+                {now}
+                compact
+                onOpen={(focus) => onOpen(entry, focus)}
+              />
+            </li>
           {/each}
+        </ul>
 
-          {#if activity.length > activityLimit}
-            <Button variant="secondary" class="mt-3 w-full" onclick={() => (activityLimit += ACTIVITY_PAGE_SIZE)}>Show more</Button>
-          {/if}
-        </section>
+        {#if goal.entries.length > ACTIVITY_PREVIEW}
+          <Button href={feedHref} variant="secondary" class="mt-4 w-full">See the full feed</Button>
+        {/if}
+      </section>
     </div>
   {/if}
 </div>
-
-{#snippet entryRow(entry: Entry)}
-  {@const component = componentsById.get(entry.componentId)}
-  {@const member = membersById.get(entry.userId)}
-  {#if activityScope === 'everyone' && member}
-    <UserAvatar name={member.name} avatarUrl={member.avatarUrl} size="sm" tone={member.id === user.id ? 'highlight' : 'muted'} />
-  {/if}
-  <div class="min-w-0 flex-1">
-    <div class="truncate text-sm">
-      {#if activityScope === 'everyone'}
-        <span class="font-medium">{member?.id === user.id ? 'You' : member?.name.split(' ')[0]}</span>
-        <span class="text-muted-foreground">·</span>
-      {/if}
-      <span class="tabular font-semibold">{formatNumber(entry.amount)} {component?.unit}</span>
-      <span class="text-muted-foreground">{component?.name}</span>
-    </div>
-    {#if entry.note}<div class="truncate text-xs text-muted-foreground">{entry.note}</div>{/if}
-  </div>
-{/snippet}

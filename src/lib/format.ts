@@ -1,14 +1,15 @@
-import { addDays, dateMs } from '$shared/dates'
+import type { Member } from '$shared/api'
+import { addDays, dateMs, daysBetween } from '$shared/dates'
+import { firstName, formatNumber } from '$shared/format'
 
-const preciseFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 })
+export { firstName, formatNumber }
+
 const wholeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 })
-const WHOLE_NUMBER_THRESHOLD = 100
 const weightFormat = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 4 })
 const percentFormat = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0 })
 const shortDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })
 const weekdayDate = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
 
-export const formatNumber = (n: number) => (Math.abs(n) >= WHOLE_NUMBER_THRESHOLD ? wholeFormat : preciseFormat).format(n)
 export const formatPoints = (n: number) => wholeFormat.format(n)
 export const formatWeight = (n: number) => weightFormat.format(n)
 export const formatPercent = (n: number) => percentFormat.format(n)
@@ -16,6 +17,7 @@ export const formatPercent = (n: number) => percentFormat.format(n)
 const utcDate = (date: string) => new Date(dateMs(date))
 
 export const formatDate = (date: string) => shortDate.format(utcDate(date))
+
 
 export function formatDateRange(start: string, end: string): string {
   return `${formatDate(start)} – ${formatDate(end)}`
@@ -27,6 +29,7 @@ export function formatDayLabel(date: string, today: string): string {
   return weekdayDate.format(utcDate(date))
 }
 
+
 export const roundDays = (days: number) => Math.round(Math.abs(days) * 10) / 10
 
 export const dayWord = (days: number) => (days === 1 ? 'day' : 'days')
@@ -34,6 +37,10 @@ export const dayWord = (days: number) => (days === 1 ? 'day' : 'days')
 export function formatDays(days: number): string {
   const rounded = roundDays(days)
   return `${formatNumber(rounded)} ${dayWord(rounded)}`
+}
+
+export function memberLabel(membersById: Map<string, Member>, id: string, userId: string): string {
+  return id === userId ? 'You' : firstName(membersById.get(id)?.name ?? 'Former member')
 }
 
 export function initials(name: string): string {
@@ -46,4 +53,31 @@ export function initials(name: string): string {
 
 export function formatMembers(count: number): string {
   return `${count} ${count === 1 ? 'member' : 'members'}`
+}
+
+const localTime = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+const localDateTime = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+export const formatDateTime = (timestamp: number) => localDateTime.format(timestamp)
+const localWeekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
+const localMonthDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
+const WEEK_DAYS = 7
+
+const pad = (n: number) => String(n).padStart(2, '0')
+
+export const formatClockMinutes = (minutes: number) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`
+
+export function toLocalInput(timestamp: number): string {
+  const d = new Date(timestamp)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+export function formatWhen(timestamp: number, now: Date): string {
+  const day = toLocalInput(timestamp).slice(0, 10)
+  const today = toLocalInput(now.getTime()).slice(0, 10)
+  const daysAgo = daysBetween(day, today)
+  if (daysAgo === 0) return localTime.format(timestamp)
+  if (daysAgo === 1) return 'Yesterday'
+  if (daysAgo < WEEK_DAYS) return localWeekday.format(timestamp)
+  return localMonthDay.format(timestamp)
 }

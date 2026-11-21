@@ -105,11 +105,11 @@
   </div>
 
   <div class="grid grid-cols-2 gap-3">
-    <div class="flex flex-col gap-2">
+    <div class="flex min-w-0 flex-col gap-2">
       <Label for="goal-start">Starts</Label>
       <Input id="goal-start" type="date" bind:value={startDate} required />
     </div>
-    <div class="flex flex-col gap-2">
+    <div class="flex min-w-0 flex-col gap-2">
       <Label for="goal-end">Ends</Label>
       <Input id="goal-end" type="date" min={startDate} max={isIsoDate(startDate) ? addDays(startDate, LIMITS.goalDays - 1) : undefined} bind:value={endDate} required />
     </div>

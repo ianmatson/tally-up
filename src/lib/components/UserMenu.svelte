@@ -1,27 +1,14 @@
 <script lang="ts">
   import LogOutIcon from '@lucide/svelte/icons/log-out'
-  import { setMode, userPrefersMode } from 'mode-watcher'
-  import { toast } from 'svelte-sonner'
+  import SettingsIcon from '@lucide/svelte/icons/settings'
+  import ShieldIcon from '@lucide/svelte/icons/shield'
   import type { User } from '$shared/api'
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
+  import { navigate } from '$lib/router.svelte'
+  import { signOut } from '$lib/session'
   import UserAvatar from './UserAvatar.svelte'
 
-  let { user }: { user: User } = $props()
-
-  const THEMES = [
-    { value: 'system', label: 'System' },
-    { value: 'light', label: 'Light' },
-    { value: 'dark', label: 'Dark' },
-  ] as const
-
-  async function signOut() {
-    const response = await fetch('/auth/logout', { method: 'POST' }).catch(() => null)
-    if (!response?.ok) {
-      toast.error('Could not sign out. Try again.')
-      return
-    }
-    window.location.replace('/')
-  }
+  let { user, adminGroupId = null }: { user: User; adminGroupId?: string | null } = $props()
 </script>
 
 <DropdownMenu.Root>
@@ -34,13 +21,16 @@
       <div class="truncate text-xs font-normal text-muted-foreground">{user.email}</div>
     </DropdownMenu.Label>
     <DropdownMenu.Separator />
-    <DropdownMenu.Label class="px-2 pt-1.5 pb-1 text-xs font-medium text-muted-foreground">Appearance</DropdownMenu.Label>
-    <DropdownMenu.RadioGroup value={userPrefersMode.current} onValueChange={(mode) => setMode(mode as (typeof THEMES)[number]['value'])}>
-      {#each THEMES as theme (theme.value)}
-        <DropdownMenu.RadioItem value={theme.value} class="rounded-lg">{theme.label}</DropdownMenu.RadioItem>
-      {/each}
-    </DropdownMenu.RadioGroup>
-    <DropdownMenu.Separator />
+    {#if adminGroupId}
+      <DropdownMenu.Item onSelect={() => navigate(`/g/${adminGroupId}/admin`)} class="rounded-lg">
+        <ShieldIcon />
+        Group admin
+      </DropdownMenu.Item>
+    {/if}
+    <DropdownMenu.Item onSelect={() => navigate('/settings')} class="rounded-lg">
+      <SettingsIcon />
+      Settings
+    </DropdownMenu.Item>
     <DropdownMenu.Item onSelect={signOut} class="rounded-lg">
       <LogOutIcon />
       Sign out

@@ -9,6 +9,7 @@ export type Member = {
   id: string
   name: string
   avatarUrl: string | null
+  joinedAt: number
 }
 
 export type GroupSummary = {
@@ -52,6 +53,41 @@ export type Entry = {
   amount: number
   date: string
   note: string | null
+  occurredAt: number
+  createdAt: number
+  reactions: Reaction[]
+  comments: Comment[]
+}
+
+export type Reaction = {
+  emoji: string
+  userIds: string[]
+}
+
+export type Comment = {
+  id: string
+  userId: string
+  body: string
+  createdAt: number
+}
+
+export type NotificationSettings = {
+  reminders: boolean
+  reminderMinute: number
+  reminderDays: number
+  contributions: boolean
+  comments: boolean
+  timezone: string
+}
+
+export type NotificationConfig = {
+  settings: NotificationSettings
+  vapidPublicKey: string
+}
+
+export type PushSubscriptionInput = {
+  endpoint: string
+  keys: { p256dh: string; auth: string }
 }
 
 export type GoalDetail = GoalSummary & {
@@ -78,7 +114,7 @@ export type GoalInput = {
 export type EntryInput = {
   componentId: string
   amount: number
-  date: string
+  occurredAt: number
   note: string | null
 }
 

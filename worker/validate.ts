@@ -1,5 +1,5 @@
 import { HTTPException } from 'hono/http-exception'
-import type { ComponentInput, EntryInput, GoalInput } from '../shared/api'
+import type { ComponentInput, EntryInput, GoalInput, PushSubscriptionInput } from '../shared/api'
 import { daysBetween, isIsoDate } from '../shared/dates'
 import { LIMITS } from '../shared/limits'
 
@@ -25,6 +25,11 @@ function positiveNumber(value: unknown, field: string): number {
   return value
 }
 
+function timestamp(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) badRequest(`${field} must be a valid date and time`)
+  return value
+}
+
 function isoDate(value: unknown, field: string): string {
   if (!isIsoDate(value)) badRequest(`${field} must be a valid date`)
   return value
@@ -43,9 +48,10 @@ function isUsableTimeZone(timeZone: string): boolean {
   }
 }
 
+const timeZoneOrUtc = (value: unknown) => (typeof value === 'string' && isUsableTimeZone(value) ? value : 'UTC')
+
 export function parseNewGroup(value: unknown): { name: string; timezone: string } {
-  const timezone = asBody(value).timezone
-  return { name: parseName(value), timezone: typeof timezone === 'string' && isUsableTimeZone(timezone) ? timezone : 'UTC' }
+  return { name: parseName(value), timezone: timeZoneOrUtc(asBody(value).timezone) }
 }
 
 function parseComponent(value: unknown): ComponentInput {
@@ -86,7 +92,59 @@ export function parseEntry(value: unknown): EntryInput {
   return {
     componentId: body.componentId,
     amount: positiveNumber(body.amount, 'Amount'),
-    date: isoDate(body.date, 'Date'),
+    occurredAt: timestamp(body.occurredAt, 'Time'),
     note,
   }
+}
+
+export function parseComment(value: unknown): string {
+  return text(asBody(value).body, 'Comment', LIMITS.comment)
+}
+
+const MINUTES_PER_DAY = 1440
+export const ALL_DAYS_MASK = 127
+
+function integerIn(value: unknown, field: string, max: number): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > max) badRequest(`${field} is not valid`)
+  return value
+}
+
+export type SettingsChange = { timezone: string; columns: [column: string, value: number | string][] }
+
+export function parseSettingsChange(value: unknown): SettingsChange {
+  const body = asBody(value)
+  const timezone = timeZoneOrUtc(body.timezone)
+  const columns: SettingsChange['columns'] = []
+  const flag = (key: string) => {
+    if (key in body) columns.push([key, body[key] === true ? 1 : 0])
+  }
+  flag('reminders')
+  flag('contributions')
+  flag('comments')
+  if ('reminderMinute' in body) columns.push(['reminder_minute', integerIn(body.reminderMinute, 'Reminder time', MINUTES_PER_DAY - 1)])
+  if ('reminderDays' in body) columns.push(['reminder_days', integerIn(body.reminderDays, 'Reminder days', ALL_DAYS_MASK)])
+  if (['reminders', 'reminderMinute', 'reminderDays'].some((key) => key in body)) columns.push(['timezone', timezone])
+  return { timezone, columns }
+}
+
+const PUSH_HOSTS = ['fcm.googleapis.com', 'push.services.mozilla.com', 'notify.windows.com', 'push.apple.com']
+
+function isPushEndpoint(value: unknown): value is string {
+  if (typeof value !== 'string' || !URL.canParse(value)) return false
+  const url = new URL(value)
+  return url.protocol === 'https:' && PUSH_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))
+}
+
+export function parseSubscription(value: unknown): PushSubscriptionInput & { timezone: string } {
+  const body = asBody(value)
+  const keys = asBody(body.keys)
+  if (!isPushEndpoint(body.endpoint)) badRequest('Push endpoint is not valid')
+  if (typeof keys.p256dh !== 'string' || typeof keys.auth !== 'string') badRequest('Push keys are not valid')
+  return { endpoint: body.endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth }, timezone: timeZoneOrUtc(body.timezone) }
+}
+
+export function parseEndpoint(value: unknown): string {
+  const endpoint = asBody(value).endpoint
+  if (typeof endpoint !== 'string') badRequest('Push endpoint is not valid')
+  return endpoint
 }

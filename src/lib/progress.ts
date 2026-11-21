@@ -11,10 +11,42 @@ export const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: 'recent', label: `${RECENT_DAYS} days` },
 ]
 
-export function entriesInPeriod(goal: Pick<GoalDetail, 'endDate' | 'entries'>, today: string, period: Period): Entry[] {
+export function periodRange(goal: Pick<GoalDetail, 'startDate' | 'endDate'>, today: string, period: Period) {
+  const end = lastLoggableDate(goal.endDate, today)
+  const recentStart = addDays(end, -(RECENT_DAYS - 1))
+  const start = period === 'recent' && recentStart > goal.startDate ? recentStart : goal.startDate
+  return { start, end }
+}
+
+export function entriesInPeriod(goal: Pick<GoalDetail, 'startDate' | 'endDate' | 'entries'>, today: string, period: Period): Entry[] {
   if (period === 'all') return goal.entries
-  const cutoff = addDays(lastLoggableDate(goal.endDate, today), -RECENT_DAYS)
-  return goal.entries.filter((e) => e.date > cutoff)
+  const { start } = periodRange(goal, today, period)
+  return goal.entries.filter((e) => e.date >= start)
+}
+
+export function dateRange(start: string, end: string): string[] {
+  const days: string[] = []
+  for (let day = start; day <= end; day = addDays(day, 1)) days.push(day)
+  return days
+}
+
+export function cumulativeByMember(
+  members: Member[],
+  entries: Entry[],
+  days: string[],
+  valueOf: (entry: Entry) => number,
+): Map<string, number[]> {
+  const dayIndex = new Map(days.map((d, i) => [d, i]))
+  const daily = new Map(members.map((m) => [m.id, new Array<number>(days.length).fill(0)]))
+  const lastDay = days.length - 1
+  for (const entry of entries) {
+    const row = daily.get(entry.userId)
+    if (!row || lastDay < 0) continue
+    const i = dayIndex.get(entry.date) ?? (entry.date < days[0] ? 0 : lastDay)
+    row[i] += valueOf(entry)
+  }
+  for (const row of daily.values()) for (let i = 1; i < row.length; i++) row[i] += row[i - 1]
+  return daily
 }
 
 export function balancedWeight(target: number): number {
@@ -44,6 +76,8 @@ export type GoalProgress = {
 
 const FLOAT_PRECISION = 1e6
 
+export const targetPoints = (components: Component[]) => components.reduce((sum, c) => sum + c.target * c.weight, 0)
+
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
 
 function totalsByComponent(entries: Entry[]): Map<string, number> {
@@ -67,12 +101,11 @@ export function goalProgress(
 
   const totals = totalsByComponent(goal.entries)
   let earnedPoints = 0
-  let possiblePoints = 0
+  const possiblePoints = targetPoints(goal.components)
   const components = goal.components.map<ComponentProgress>((component) => {
     const total = totals.get(component.id) ?? 0
     const remaining = Math.max(0, component.target - total)
     earnedPoints += Math.min(total, component.target) * component.weight
-    possiblePoints += component.target * component.weight
     return {
       component,
       total,

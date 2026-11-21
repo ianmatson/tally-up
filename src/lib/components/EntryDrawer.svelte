@@ -1,15 +1,15 @@
 <script lang="ts">
   import { createMutation, useQueryClient } from '@tanstack/svelte-query'
-  import XIcon from '@lucide/svelte/icons/x'
   import { untrack } from 'svelte'
   import { toast } from 'svelte-sonner'
   import type { Entry, EntryInput, GoalDetail } from '$shared/api'
-  import { lastLoggableDate } from '$shared/dates'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
+  import { toLocalInput } from '$lib/format'
   import { goalQuery } from '$lib/queries'
   import { Button } from '$lib/components/ui/button'
   import * as Drawer from '$lib/components/ui/drawer'
+  import DrawerCloseButton from './DrawerCloseButton.svelte'
   import { Input } from '$lib/components/ui/input'
   import { Label } from '$lib/components/ui/label'
   import { cn } from '$lib/utils'
@@ -22,17 +22,19 @@
   } = $props()
 
   const queryClient = useQueryClient()
-  const latestDate = $derived(lastLoggableDate(goal.endDate, today))
+  const GOAL_ENDED_DEFAULT_TIME = 'T12:00'
 
   let componentId = $state('')
   let amount = $state('')
-  let date = $state('')
+  let when = $state('')
+  let latestWhen = $state('')
   let note = $state('')
 
   function resetDraft() {
     componentId = entry?.componentId ?? goal.components[0]?.id ?? ''
     amount = entry ? String(entry.amount) : ''
-    date = entry?.date ?? latestDate
+    latestWhen = toLocalInput(Date.now())
+    when = entry ? toLocalInput(entry.occurredAt) : today > goal.endDate ? goal.endDate + GOAL_ENDED_DEFAULT_TIME : latestWhen
     note = entry?.note ?? ''
   }
 
@@ -42,7 +44,7 @@
 
   const selected = $derived(goal.components.find((c) => c.id === componentId))
   const parsedAmount = $derived(Number(amount))
-  const canSave = $derived(!!selected && parsedAmount > 0 && !!date)
+  const canSave = $derived(!!selected && parsedAmount > 0 && !!when)
 
   const onSuccess = (message: string) => () => {
     queryClient.invalidateQueries({ queryKey: goalQuery(goal.id).queryKey })
@@ -66,7 +68,9 @@
   function submit(event: SubmitEvent) {
     event.preventDefault()
     if (!canSave) return
-    save.mutate({ componentId, amount: parsedAmount, date, note: note.trim() || null })
+    const unchanged = entry && when === toLocalInput(entry.occurredAt)
+    const occurredAt = unchanged ? entry.occurredAt : new Date(when).getTime()
+    save.mutate({ componentId, amount: parsedAmount, occurredAt, note: note.trim() || null })
   }
 </script>
 
@@ -76,13 +80,7 @@
       <Drawer.Header class="relative px-4 pt-3 pb-4">
         <Drawer.Title class="pr-10 text-xl font-semibold tracking-tight">{entry ? 'Edit entry' : 'Log progress'}</Drawer.Title>
         <Drawer.Description>{goal.name}</Drawer.Description>
-        <Drawer.Close
-          type="button"
-          class="absolute top-2 right-3 grid size-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          aria-label="Close"
-        >
-          <XIcon class="size-5" />
-        </Drawer.Close>
+        <DrawerCloseButton />
       </Drawer.Header>
 
       <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4">
@@ -123,15 +121,13 @@
           />
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div class="flex flex-col gap-2">
-            <Label for="entry-date">Date</Label>
-            <Input id="entry-date" type="date" min={goal.startDate} max={latestDate} bind:value={date} required />
-          </div>
-          <div class="flex flex-col gap-2">
-            <Label for="entry-note">Note</Label>
-            <Input id="entry-note" maxlength={LIMITS.note} placeholder="Optional" bind:value={note} />
-          </div>
+        <div class="flex min-w-0 flex-col gap-2">
+          <Label for="entry-when">When</Label>
+          <Input id="entry-when" type="datetime-local" max={latestWhen} bind:value={when} required />
+        </div>
+        <div class="flex min-w-0 flex-col gap-2">
+          <Label for="entry-note">Note</Label>
+          <Input id="entry-note" maxlength={LIMITS.note} placeholder="Optional, like “Felt strong today”" bind:value={note} />
         </div>
       </div>
 

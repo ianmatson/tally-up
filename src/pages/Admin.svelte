@@ -201,7 +201,7 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Remove {memberToRemove?.name}?</AlertDialog.Title>
       <AlertDialog.Description>
-        This also deletes everything they logged in this group. They can join again with the invite link.
+        This also deletes everything they logged, commented and reacted in this group. They can join again with the invite link.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>

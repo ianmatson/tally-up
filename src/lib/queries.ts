@@ -1,6 +1,6 @@
 import { MutationCache, QueryCache, QueryClient, queryOptions } from '@tanstack/svelte-query'
 import { toast } from 'svelte-sonner'
-import type { GoalDetail, GroupDetail, GroupSummary, InvitePreview, User } from '$shared/api'
+import type { GoalDetail, GroupDetail, GroupSummary, InvitePreview, NotificationConfig, User } from '$shared/api'
 import { api, ApiError } from './api'
 
 const MAX_RETRIES = 2
@@ -44,3 +44,6 @@ export const goalQuery = (goalId: string) =>
 
 export const inviteQuery = (code: string) =>
   queryOptions({ queryKey: ['invite', code], queryFn: () => api<InvitePreview>(`/invites/${code}`) })
+
+export const notificationsQuery = () =>
+  queryOptions({ queryKey: ['notifications'], queryFn: () => api<NotificationConfig>('/notifications') })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Component, Entry, Member } from '$shared/api'
-import { balancedWeight, goalProgress, memberScores, rankBy } from './progress'
+import { balancedWeight, cumulativeByMember, dateRange, goalProgress, memberScores, periodRange, rankBy } from './progress'
 
 const pushups: Component = { id: 'p', name: 'Pushups', unit: 'reps', target: 10000, weight: 0.1 }
 const miles: Component = { id: 'm', name: 'Run', unit: 'miles', target: 50, weight: 20 }
@@ -15,6 +15,10 @@ const entry = (userId: string, componentId: string, amount: number, date = '2026
   amount,
   date,
   note: null,
+  occurredAt: 0,
+  createdAt: 0,
+  reactions: [],
+  comments: [],
 })
 
 describe('goalProgress', () => {
@@ -61,9 +65,9 @@ describe('goalProgress', () => {
 
 describe('memberScores and rankBy', () => {
   const members: Member[] = [
-    { id: 'a', name: 'Ana', avatarUrl: null },
-    { id: 'b', name: 'Ben', avatarUrl: null },
-    { id: 'c', name: 'Cy', avatarUrl: null },
+    { id: 'a', name: 'Ana', avatarUrl: null, joinedAt: 0 },
+    { id: 'b', name: 'Ben', avatarUrl: null, joinedAt: 0 },
+    { id: 'c', name: 'Cy', avatarUrl: null, joinedAt: 0 },
   ]
 
   it('ranks by weighted points, so hard components count for more', () => {
@@ -87,5 +91,25 @@ describe('memberScores and rankBy', () => {
     expect(board[0].share).toBeCloseTo(0.75)
     expect(board[0].item.byComponent.m).toEqual({ amount: 3, points: 60 })
     expect(board[1].share).toBeCloseTo(0.25)
+  })
+})
+
+describe('chart series', () => {
+  it('builds cumulative totals per member per day, folding out-of-range entries into the ends', () => {
+    const days = dateRange('2026-12-01', '2026-12-03')
+    const series = cumulativeByMember(
+      [{ id: 'a', name: 'Ana', avatarUrl: null, joinedAt: 0 }],
+      [entry('a', 'p', 10, '2026-12-01'), entry('a', 'p', 5, '2026-12-03'), entry('a', 'p', 99, '2026-11-30'), entry('a', 'p', 1, '2026-12-09')],
+      days,
+      (e) => e.amount,
+    )
+    expect(days).toEqual(['2026-12-01', '2026-12-02', '2026-12-03'])
+    expect(series.get('a')).toEqual([109, 109, 115])
+  })
+
+  it('limits the recent period to the last seven loggable days', () => {
+    expect(periodRange(period, '2026-12-20', 'recent')).toEqual({ start: '2026-12-14', end: '2026-12-20' })
+    expect(periodRange(period, '2026-12-03', 'recent')).toEqual({ start: '2026-12-01', end: '2026-12-03' })
+    expect(periodRange(period, '2027-01-05', 'all')).toEqual({ start: '2026-12-01', end: '2026-12-31' })
   })
 })

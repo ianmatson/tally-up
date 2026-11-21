@@ -31,7 +31,7 @@
     <section class="rise-in rounded-card bg-card p-7 text-center">
       <h1 class="text-xl font-semibold tracking-tight">Invite not found</h1>
       <p class="mt-2 text-sm text-muted-foreground">This link is not valid anymore. Ask the group admin for a new one.</p>
-      <Button href="/" class="mt-6">Go to your groups</Button>
+      <Button href="/groups" class="mt-6">Go to your groups</Button>
     </section>
   {:else if invite.data}
     <section class="rise-in rounded-card bg-card p-7 text-center">
