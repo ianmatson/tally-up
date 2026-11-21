@@ -39,8 +39,25 @@ export function formatDays(days: number): string {
   return `${formatNumber(rounded)} ${dayWord(rounded)}`
 }
 
+const shortNameCache = new WeakMap<Map<string, Member>, Map<string, string>>()
+
+function shortNames(membersById: Map<string, Member>): Map<string, string> {
+  const cached = shortNameCache.get(membersById)
+  if (cached) return cached
+  const firstNameCounts = new Map<string, number>()
+  for (const m of membersById.values()) firstNameCounts.set(firstName(m.name), (firstNameCounts.get(firstName(m.name)) ?? 0) + 1)
+  const names = new Map<string, string>()
+  for (const m of membersById.values()) {
+    const first = firstName(m.name)
+    const lastInitial = m.name.split(/\s+/)[1]?.[0]
+    names.set(m.id, firstNameCounts.get(first)! > 1 && lastInitial ? `${first} ${lastInitial}.` : first)
+  }
+  shortNameCache.set(membersById, names)
+  return names
+}
+
 export function memberLabel(membersById: Map<string, Member>, id: string, userId: string): string {
-  return id === userId ? 'You' : firstName(membersById.get(id)?.name ?? 'Former member')
+  return id === userId ? 'You' : (shortNames(membersById).get(id) ?? 'Former member')
 }
 
 export function initials(name: string): string {

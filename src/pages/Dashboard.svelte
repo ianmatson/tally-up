@@ -16,6 +16,7 @@
   import { entriesInPeriod, goalProgress, memberScores, type Period, PERIOD_OPTIONS, rankBy } from '$lib/progress'
 
   const ACTIVITY_PREVIEW = 5
+  const COMPONENT_PREVIEW = 5
   const MEMBER_STACK = 4
   const LEADER_PREVIEW = 3
   const TILE_LABEL = 'text-[0.8rem]'
@@ -33,6 +34,7 @@
   } = $props()
 
   let leaderPeriod = $state<Period>('all')
+  let showAllComponents = $state(false)
 
   const progress = $derived(goal ? goalProgress(goal, group.timezone, now) : null)
   const componentsById = $derived(new Map(goal?.components.map((c) => [c.id, c]) ?? []))
@@ -164,7 +166,7 @@
             {/if}
           </div>
           <ul class="flex flex-col gap-4">
-            {#each progress.components as item (item.component.id)}
+            {#each showAllComponents || progress.components.length <= COMPONENT_PREVIEW + 1 ? progress.components : progress.components.slice(0, COMPONENT_PREVIEW) as item (item.component.id)}
               {@const done = item.total >= item.component.target}
               <li class="flex flex-col gap-2">
                 <div class="flex items-baseline justify-between gap-3 text-sm">
@@ -192,6 +194,11 @@
               </li>
             {/each}
           </ul>
+          {#if progress.components.length > COMPONENT_PREVIEW + 1}
+            <Button variant="secondary" size="sm" class="mt-4 w-full" onclick={() => (showAllComponents = !showAllComponents)}>
+              {showAllComponents ? 'Show fewer' : `Show all ${progress.components.length} activities`}
+            </Button>
+          {/if}
           {#if progress.phase === 'active' && !progress.complete}
             <p class="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
               <span class="h-3 w-0.5 rounded-full bg-foreground"></span>

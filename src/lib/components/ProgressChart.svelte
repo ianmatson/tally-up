@@ -21,6 +21,7 @@
   const MAX_DIRECT_LABELS = 4
   const MIN_LABEL_GAP = 13
   const Y_TICKS = 4
+  const TOOLTIP_ROWS = 6
 
   let width = $state(0)
   let hover = $state<number | null>(null)
@@ -55,6 +56,12 @@
 
   const index = $derived(Math.min(hover ?? last, last))
   const rankedAt = $derived(series.toSorted((a, b) => b.values[index] - a.values[index]))
+  const tooltipRows = $derived.by(() => {
+    if (rankedAt.length <= TOOLTIP_ROWS) return rankedAt
+    const top = rankedAt.slice(0, TOOLTIP_ROWS - 1)
+    const highlight = rankedAt.find((s) => s.id === (focusId ?? highlightId))
+    return highlight && !top.includes(highlight) ? [...top, highlight] : rankedAt.slice(0, TOOLTIP_ROWS)
+  })
 
   const ariaValueText = $derived(`${formatDate(days[index])}: ${rankedAt.map((s) => `${s.name} ${format(s.values[index])}`).join(', ')}`)
 
@@ -150,13 +157,16 @@
         role="status"
       >
         <div class="mb-1 text-xs text-muted-foreground">{formatDate(days[index])}</div>
-        {#each rankedAt as row (row.id)}
+        {#each tooltipRows as row (row.id)}
           <div class="flex items-center gap-2 py-0.5">
             <span class="h-0.5 w-3 shrink-0 rounded-full" style="background: {row.color}"></span>
             <span class="tabular font-semibold">{format(row.values[index])}</span>
             <span class="truncate text-muted-foreground">{row.name}</span>
           </div>
         {/each}
+        {#if rankedAt.length > tooltipRows.length}
+          <div class="pt-0.5 text-xs text-muted-foreground">and {rankedAt.length - tooltipRows.length} more</div>
+        {/if}
         {#if reference}
           <div class="mt-1 flex items-center gap-2 border-t pt-1 text-xs text-muted-foreground">
             <span class="h-0 w-3 shrink-0 border-t-[1.5px] border-dashed border-muted-foreground"></span>

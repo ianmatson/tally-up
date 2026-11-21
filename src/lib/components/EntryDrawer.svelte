@@ -24,6 +24,7 @@
 
   const queryClient = useQueryClient()
   const GOAL_ENDED_DEFAULT_TIME = 'T12:00'
+  const MAX_LARGE_TILES = 6
 
   let componentId = $state('')
   let amount = $state('')
@@ -45,6 +46,7 @@
   })
 
   const selected = $derived(goal.components.find((c) => c.id === componentId))
+  const compactTiles = $derived(goal.components.length > MAX_LARGE_TILES)
   const parsedAmount = $derived(Number(amount))
   const canSave = $derived(!!selected && parsedAmount > 0 && !!when)
 
@@ -88,12 +90,13 @@
       <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4">
         <fieldset class="flex flex-col gap-2">
           <legend class="mb-2 text-sm font-medium">Activity</legend>
-          <div class="grid grid-cols-2 gap-2">
+          <div class={compactTiles ? 'flex flex-wrap gap-1.5' : 'grid grid-cols-2 gap-2'}>
             {#each goal.components as component (component.id)}
               <button
                 type="button"
                 class={cn(
-                  'rounded-2xl px-4 py-3 text-left text-sm transition-colors duration-150',
+                  'text-left text-sm transition-colors duration-150',
+                  compactTiles ? 'rounded-full px-3.5 py-2' : 'rounded-2xl px-4 py-3',
                   component.id === componentId
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary hover:bg-accent',
@@ -101,8 +104,12 @@
                 aria-pressed={component.id === componentId}
                 onclick={() => (componentId = component.id)}
               >
-                <span class="block font-medium">{component.name}</span>
-                <span class="block text-xs opacity-70">{component.unit}</span>
+                {#if compactTiles}
+                  <span class="font-medium">{component.name}</span>
+                {:else}
+                  <span class="block font-medium">{component.name}</span>
+                  <span class="block text-xs opacity-70">{component.unit}</span>
+                {/if}
               </button>
             {/each}
           </div>

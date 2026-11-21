@@ -5,7 +5,8 @@
   import ProgressChart from '$lib/components/ProgressChart.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
-  import { firstName, formatNumber, formatPercent, formatPoints, formatWeight } from '$lib/format'
+  import { Button } from '$lib/components/ui/button'
+  import { formatNumber, formatPercent, formatPoints, formatWeight, memberLabel } from '$lib/format'
   import { daysBetween } from '$shared/dates'
   import {
     cumulativeByMember,
@@ -22,6 +23,7 @@
 
   const OVERALL = 'overall'
   const PALETTE_SIZE = 8
+  const VISIBLE_ROWS = 10
 
   let { group, goal, today, user }: { group: GroupDetail; goal: GoalDetail | null; today: string; user: User } = $props()
 
@@ -29,6 +31,7 @@
   let view = $state(OVERALL)
   let expanded = $state<string | null>(null)
   let hovered = $state<string | null>(null)
+  let showAllRows = $state(false)
 
   const entries = $derived(goal ? entriesInPeriod(goal, today, period) : [])
   const scores = $derived(goal ? memberScores(group.members, goal.components, entries) : [])
@@ -41,9 +44,21 @@
       (goal?.components ?? []).map((c) => [c.id, scores.reduce((sum, s) => sum + s.byComponent[c.id].amount, 0)]),
     ),
   )
-  const colors = $derived(
-    new Map(group.members.map((m, i) => [m.id, i < PALETTE_SIZE ? `var(--series-${i + 1})` : 'var(--series-other)'])),
+  const colorOrder = $derived(
+    group.members.length <= PALETTE_SIZE || !goal
+      ? group.members
+      : rankBy(memberScores(group.members, goal.components, goal.entries), (s) => s.points).map((r) => r.item.member),
   )
+  const colors = $derived(
+    new Map(colorOrder.map((m, i) => [m.id, i < PALETTE_SIZE ? `var(--series-${i + 1})` : 'var(--series-other)'])),
+  )
+  const membersById = $derived(new Map(group.members.map((m) => [m.id, m])))
+  const visibleRows = $derived.by(() => {
+    if (showAllRows || rows.length <= VISIBLE_ROWS + 1) return rows
+    const top = rows.slice(0, VISIBLE_ROWS)
+    const me = rows.find((r) => r.item.member.id === user.id)
+    return me && !top.includes(me) ? [...top, me] : top
+  })
   const memberColor = (memberId: string) => colors.get(memberId)!
 
   const days = $derived.by(() => {
@@ -58,7 +73,7 @@
     const totals = cumulativeByMember(group.members, entries, days, valueOf)
     return group.members.map((m) => ({
       id: m.id,
-      name: m.id === user.id ? 'You' : firstName(m.name),
+      name: memberLabel(membersById, m.id, user.id),
       color: memberColor(m.id),
       values: totals.get(m.id) ?? [],
     }))
@@ -95,7 +110,7 @@
   {#if !goal}
     <p class="rounded-card bg-card px-5 py-8 text-center text-sm text-muted-foreground">The leaderboard starts when the group has a goal.</p>
   {:else}
-    <div class="-mx-4 mb-3 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+    <div class="-mx-4 mb-3 overflow-x-auto px-4 pr-10 [mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)] sm:mx-0 sm:px-0 sm:pr-10">
       <PillTabs bind:value={view} label="Ranking" size="md" options={viewOptions} />
     </div>
 
@@ -126,7 +141,7 @@
     {/if}
 
     <ol class="rise-in flex flex-col gap-2">
-      {#each rows as row (row.item.member.id)}
+      {#each visibleRows as row (row.item.member.id)}
         {@const member = row.item.member}
         {@const isMe = member.id === user.id}
         {@const isOpen = expanded === member.id && !selectedComponent}
@@ -172,6 +187,9 @@
         </li>
       {/each}
     </ol>
+    {#if visibleRows.length < rows.length}
+      <Button variant="secondary" class="mt-3 w-full" onclick={() => (showAllRows = true)}>Show all {rows.length} members</Button>
+    {/if}
 
     <section class="mt-6 rounded-card bg-card p-5">
       <h2 class="font-semibold tracking-tight">How scoring works</h2>
