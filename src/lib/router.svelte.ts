@@ -7,7 +7,9 @@ export const router = new Router()
 export function navigate(to: string, { replace = false } = {}) {
   history[replace ? 'replaceState' : 'pushState'](null, '', to)
   router.url = new URL(window.location.href)
-  window.scrollTo(0, 0)
+  const anchor = window.location.hash && document.getElementById(window.location.hash.slice(1))
+  if (anchor) anchor.scrollIntoView({ behavior: 'smooth' })
+  else window.scrollTo(0, 0)
 }
 
 window.addEventListener('popstate', () => {

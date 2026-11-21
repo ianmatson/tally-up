@@ -1,15 +1,13 @@
 import type { PushSubscriptionInput } from '$shared/api'
 import { api } from './api'
+import { isStandalone, platform } from './install.svelte'
 
 export type PushSupport = 'supported' | 'needs-install' | 'unsupported'
-
-const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-const isStandalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && navigator.standalone === true)
 
 export const pushSupport: PushSupport =
   'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
     ? 'supported'
-    : isIos && !isStandalone
+    : platform === 'ios' && !isStandalone
       ? 'needs-install'
       : 'unsupported'
 

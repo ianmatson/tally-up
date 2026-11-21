@@ -9,6 +9,8 @@
   import { api } from '$lib/api'
   import { ACCENTS, accent } from '$lib/accent.svelte'
   import AppHeader from '$lib/components/AppHeader.svelte'
+  import InstallGuide from '$lib/components/InstallGuide.svelte'
+  import { isStandalone, platform } from '$lib/install.svelte'
   import LoadError from '$lib/components/LoadError.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
@@ -42,6 +44,7 @@
   let deviceBusy = $state(false)
 
   onMount(async () => {
+    if (window.location.hash === '#install') document.getElementById('install')?.scrollIntoView({ behavior: 'smooth' })
     if (pushSupport !== 'supported') return
     const subscription = await currentSubscription()
     if (subscription) {
@@ -120,6 +123,8 @@
     <h1 class="page-title">Settings</h1>
   </div>
 
+  {#if !isStandalone && platform !== 'other'}{@render installCard()}{/if}
+
   <section class={CARD} aria-labelledby="appearance-heading">
     <h2 id="appearance-heading" class="font-semibold tracking-tight">Appearance</h2>
     <div class="mt-4 flex items-center justify-between gap-3">
@@ -159,8 +164,7 @@
       {#if pushSupport === 'needs-install'}
         <p class="font-medium">Add Tally Up to your Home Screen first</p>
         <p class="mt-1 text-muted-foreground">
-          On iPhone, notifications only work in the installed app. Tap the Share button in Safari, then Add to Home Screen. Open Tally Up from
-          your Home Screen and come back here.
+          On iPhone, notifications only work in the installed app. Follow the steps in <a href="#install" class="font-medium text-foreground underline underline-offset-2">Add to Home Screen</a>, then open Tally Up from your Home Screen and come back here.
         </p>
       {:else if pushSupport === 'unsupported'}
         <p class="text-muted-foreground">This browser cannot show notifications. Try Chrome, Edge, Firefox or Safari.</p>
@@ -229,6 +233,8 @@
     {/if}
   </section>
 
+  {#if !isStandalone && platform === 'other'}{@render installCard()}{/if}
+
   <section class="{CARD} [animation-delay:120ms]" aria-labelledby="account-heading">
     <h2 id="account-heading" class="font-semibold tracking-tight">Account</h2>
     <div class="mt-4 flex items-center gap-3">
@@ -250,4 +256,12 @@
     </span>
     <Switch class="mt-0.5" checked={settings?.[key] ?? false} onCheckedChange={(on) => update({ [key]: on })} />
   </label>
+{/snippet}
+
+{#snippet installCard()}
+  <section id="install" class="{CARD} scroll-mt-24" aria-labelledby="install-heading">
+    <h2 id="install-heading" class="font-semibold tracking-tight">Add to Home Screen</h2>
+    <p class="mt-1 mb-4 text-sm text-muted-foreground">Put Tally Up on your phone's Home Screen to open it in one tap.</p>
+    <InstallGuide />
+  </section>
 {/snippet}

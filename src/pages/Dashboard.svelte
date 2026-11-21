@@ -2,7 +2,9 @@
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
   import type { Entry, GoalDetail, GroupDetail, User } from '$shared/api'
   import { daysBetween } from '$shared/dates'
+  import XIcon from '@lucide/svelte/icons/x'
   import ActivityItem from '$lib/components/ActivityItem.svelte'
+  import { install } from '$lib/install.svelte'
   import CountUp from '$lib/components/CountUp.svelte'
   import HatchTrack from '$lib/components/HatchTrack.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
@@ -80,6 +82,26 @@
       <span class="tabular">{group.members.length}</span>
     </button>
   </div>
+
+  {#if install.showTip}
+    <div class="rise-in mb-3 flex items-center gap-3 rounded-2xl bg-card py-2.5 pr-2 pl-4 text-sm">
+      <TallyGlyph class="size-5 shrink-0" />
+      <p class="min-w-0 flex-1">Add Tally Up to your Home Screen for one-tap logging.</p>
+      {#if install.promptEvent}
+        <Button size="sm" onclick={() => install.promptInstall()}>Install</Button>
+      {:else}
+        <Button size="sm" variant="secondary" href="/settings#install">How</Button>
+      {/if}
+      <button
+        type="button"
+        class="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        aria-label="Dismiss"
+        onclick={() => install.dismissTip()}
+      >
+        <XIcon class="size-4" />
+      </button>
+    </div>
+  {/if}
 
   {#if !goal || !progress}
     <section class="rise-in rounded-card bg-card p-6">
