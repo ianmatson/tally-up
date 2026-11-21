@@ -4,6 +4,7 @@
   import HatchTrack from '$lib/components/HatchTrack.svelte'
   import ProgressChart from '$lib/components/ProgressChart.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
+  import SearchSelect from '$lib/components/SearchSelect.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
   import { Button } from '$lib/components/ui/button'
   import { formatNumber, formatPercent, formatPoints, formatWeight, memberLabel } from '$lib/format'
@@ -24,6 +25,7 @@
   const OVERALL = 'overall'
   const PALETTE_SIZE = 8
   const VISIBLE_ROWS = 10
+  const MAX_TABS = 10
 
   let { group, goal, today, user }: { group: GroupDetail; goal: GoalDetail | null; today: string; user: User } = $props()
 
@@ -110,9 +112,13 @@
   {#if !goal}
     <p class="rounded-card bg-card px-5 py-8 text-center text-sm text-muted-foreground">The leaderboard starts when the group has a goal.</p>
   {:else}
-    <div class="-mx-4 mb-3 overflow-x-auto px-4 pr-10 [mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)] sm:mx-0 sm:px-0 sm:pr-10">
-      <PillTabs bind:value={view} label="Ranking" size="md" options={viewOptions} />
-    </div>
+    {#if goal.components.length > MAX_TABS}
+      <SearchSelect bind:value={view} label="Ranking" placeholder="Search activities" options={viewOptions} class="mb-3 bg-card sm:w-72" />
+    {:else}
+      <div class="-mx-4 mb-3 overflow-x-auto px-4 pr-10 [mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)] sm:mx-0 sm:px-0 sm:pr-10">
+        <PillTabs bind:value={view} label="Ranking" size="md" options={viewOptions} />
+      </div>
+    {/if}
 
     {#if days.length > 0}
       <section class="rise-in mb-3 rounded-card bg-card p-4 sm:p-5" aria-labelledby="chart-heading">

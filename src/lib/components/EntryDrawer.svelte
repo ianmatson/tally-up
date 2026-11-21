@@ -11,6 +11,7 @@
   import * as Drawer from '$lib/components/ui/drawer'
   import ConfirmDialog from './ConfirmDialog.svelte'
   import DrawerCloseButton from './DrawerCloseButton.svelte'
+  import SearchSelect from './SearchSelect.svelte'
   import { Input } from '$lib/components/ui/input'
   import { Label } from '$lib/components/ui/label'
   import { cn } from '$lib/utils'
@@ -25,6 +26,7 @@
   const queryClient = useQueryClient()
   const GOAL_ENDED_DEFAULT_TIME = 'T12:00'
   const MAX_LARGE_TILES = 6
+  const MAX_CHIPS = 10
 
   let componentId = $state('')
   let amount = $state('')
@@ -90,6 +92,14 @@
       <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4">
         <fieldset class="flex flex-col gap-2">
           <legend class="mb-2 text-sm font-medium">Activity</legend>
+          {#if goal.components.length > MAX_CHIPS}
+            <SearchSelect
+              bind:value={componentId}
+              label="Activity"
+              placeholder="Search activities"
+              options={goal.components.map((c) => ({ value: c.id, label: c.name, hint: c.unit }))}
+            />
+          {:else}
           <div class={compactTiles ? 'flex flex-wrap gap-1.5' : 'grid grid-cols-2 gap-2'}>
             {#each goal.components as component (component.id)}
               <button
@@ -113,6 +123,7 @@
               </button>
             {/each}
           </div>
+          {/if}
         </fieldset>
 
         <div class="flex flex-col gap-2">

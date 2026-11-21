@@ -16,7 +16,9 @@
   } = $props()
 
   const HEIGHT = 232
-  const PAD = { top: 14, right: 14, bottom: 26, left: 44 }
+  const PAD = { top: 14, right: 14, bottom: 26 }
+  const TICK_CHAR_WIDTH = 6.5
+  const TICK_GAP = 14
   const LABEL_GUTTER = 64
   const MAX_DIRECT_LABELS = 4
   const MIN_LABEL_GAP = 13
@@ -29,15 +31,16 @@
 
   const directLabels = $derived(series.length <= MAX_DIRECT_LABELS)
   const right = $derived(PAD.right + (directLabels ? LABEL_GUTTER : 0))
-  const plotWidth = $derived(Math.max(0, width - PAD.left - right))
   const plotHeight = HEIGHT - PAD.top - PAD.bottom
   const last = $derived(days.length - 1)
 
   const yMax = $derived(niceCeiling(Math.max(1, ...series.map((s) => s.values[last]), reference?.[last] ?? 0)))
   const yTicks = $derived(Array.from({ length: Y_TICKS + 1 }, (_, i) => (yMax / Y_TICKS) * i))
+  const left = $derived(Math.ceil(Math.max(...yTicks.map((t) => format(t).length)) * TICK_CHAR_WIDTH + TICK_GAP))
+  const plotWidth = $derived(Math.max(0, width - left - right))
   const xTicks = $derived([...new Set([0, Math.round(last / 2), last])])
 
-  const x = (i: number) => PAD.left + (last === 0 ? plotWidth / 2 : (i / last) * plotWidth)
+  const x = (i: number) => left + (last === 0 ? plotWidth / 2 : (i / last) * plotWidth)
   const y = (v: number) => PAD.top + plotHeight - (v / yMax) * plotHeight
   const path = (values: number[]) => values.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('')
 
@@ -71,7 +74,7 @@
   }
 
   function track(event: PointerEvent & { currentTarget: SVGSVGElement }) {
-    const ratio = (event.clientX - event.currentTarget.getBoundingClientRect().left - PAD.left) / plotWidth
+    const ratio = (event.clientX - event.currentTarget.getBoundingClientRect().left - left) / plotWidth
     hover = last === 0 ? 0 : Math.min(last, Math.max(0, Math.round(ratio * last)))
   }
 
@@ -103,8 +106,8 @@
       onblur={() => (hover = null)}
     >
       {#each yTicks as tick (tick)}
-        <line x1={PAD.left} x2={PAD.left + plotWidth} y1={y(tick)} y2={y(tick)} stroke="var(--border)" stroke-width="1" />
-        <text x={PAD.left - 8} y={y(tick)} dy="0.32em" text-anchor="end" class="fill-muted-foreground text-[11px] tabular">{format(tick)}</text>
+        <line x1={left} x2={left + plotWidth} y1={y(tick)} y2={y(tick)} stroke="var(--border)" stroke-width="1" />
+        <text x={left - 8} y={y(tick)} dy="0.32em" text-anchor="end" class="fill-muted-foreground text-[11px] tabular">{format(tick)}</text>
       {/each}
       {#each xTicks as i (i)}
         <text
@@ -152,7 +155,7 @@
       {@const preferred = x(index) > width / 2 ? x(index) - tooltipWidth - gap : x(index) + gap}
       <div
         class="pointer-events-none absolute top-2 z-10 min-w-40 rounded-xl bg-popover px-3 py-2 text-sm shadow-[0_8px_24px_rgb(0_0_0/0.14)] ring-1 ring-border"
-        style="left: {Math.min(Math.max(PAD.left + 4, preferred), width - tooltipWidth)}px"
+        style="left: {Math.min(Math.max(left + 4, preferred), width - tooltipWidth)}px"
         bind:clientWidth={tooltipWidth}
         role="status"
       >
