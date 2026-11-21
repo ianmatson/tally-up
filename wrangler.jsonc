@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tally-up",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/auth/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "workout-together",
+      "database_id": "3a65951c-6bb2-45fe-b1c8-f5042a479808",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true }
+}
