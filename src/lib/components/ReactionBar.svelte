@@ -74,7 +74,7 @@
     >
       <SmilePlusIcon class="size-4" />
     </Popover.Trigger>
-    <Popover.Content align="start" collisionPadding={12} class={cn('w-auto rounded-full p-1', showAll && 'overflow-hidden rounded-2xl p-0')}>
+    <Popover.Content align="start" collisionPadding={12} class={cn('w-auto rounded-full p-1', showAll && 'panel-expand overflow-hidden rounded-2xl p-0')}>
       {#if showAll}
         <EmojiPicker onPick={pick} />
       {:else}

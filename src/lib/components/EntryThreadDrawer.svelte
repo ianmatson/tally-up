@@ -3,6 +3,7 @@
   import PencilIcon from '@lucide/svelte/icons/pencil'
   import Trash2Icon from '@lucide/svelte/icons/trash-2'
   import { createMutation, useQueryClient } from '@tanstack/svelte-query'
+  import { tick } from 'svelte'
   import type { Comment, Entry, GoalDetail, GroupDetail, User } from '$shared/api'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
@@ -34,6 +35,7 @@
   let draft = $state('')
   let commentToDelete = $state<{ entryId: string; commentId: string } | null>(null)
   let composer = $state<HTMLTextAreaElement | null>(null)
+  let scroller = $state<HTMLDivElement | null>(null)
 
   $effect(() => {
     if (open && focusComposer) requestAnimationFrame(() => composer?.focus())
@@ -59,6 +61,7 @@
     onSuccess: (comment, { entryId, body }) => {
       updateComments(entryId, (comments) => [...comments, comment])
       if (draft.trim() === body) draft = ''
+      tick().then(() => scroller?.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' }))
     },
   }))
 
@@ -101,7 +104,7 @@
           <DrawerCloseButton />
         </Drawer.Header>
 
-        <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-2">
+        <div bind:this={scroller} class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-2">
           {#if entry.note}
             <p class="w-fit max-w-full rounded-[16px] rounded-tl-[4px] bg-secondary px-3.5 py-2 break-words">{entry.note}</p>
           {/if}

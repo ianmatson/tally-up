@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CheckIcon from '@lucide/svelte/icons/check'
   import CopyIcon from '@lucide/svelte/icons/copy'
   import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw'
   import Share2Icon from '@lucide/svelte/icons/share-2'
@@ -82,9 +83,15 @@
     },
   }))
 
+  const COPIED_MS = 2000
+  let copied = $state(false)
+  let copiedTimer: ReturnType<typeof setTimeout> | undefined
+
   async function copyInvite() {
     await navigator.clipboard.writeText(inviteUrl)
-    toast.success('Invite link copied')
+    copied = true
+    clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => (copied = false), COPIED_MS)
   }
 
   function shareInvite() {
@@ -146,7 +153,9 @@
         {#if canShare}
           <Button onclick={shareInvite}><Share2Icon /> Share</Button>
         {/if}
-        <Button variant={canShare ? 'outline' : 'default'} onclick={copyInvite}><CopyIcon /> Copy</Button>
+        <Button variant={canShare ? 'outline' : 'default'} class="min-w-26" onclick={copyInvite}>
+          {#if copied}<CheckIcon /> Copied{:else}<CopyIcon /> Copy{/if}
+        </Button>
         <Button variant="ghost" onclick={() => (confirmResetInvite = true)}><RefreshCwIcon /> New link</Button>
       </div>
     </Card.Content>
