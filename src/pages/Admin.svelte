@@ -12,7 +12,6 @@
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
   import GoalForm from '$lib/components/GoalForm.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
-  import * as AlertDialog from '$lib/components/ui/alert-dialog'
   import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
   import * as Card from '$lib/components/ui/card'
@@ -68,9 +67,9 @@
 
   const resetInvite = createMutation(() => ({
     mutationFn: () => api(`/groups/${group.id}/invite-code`, { method: 'POST' }),
-    onSuccess: () => {
-      refreshGroup()
-      toast.success('New invite link created. The old link no longer works.')
+    onSuccess: async () => {
+      await refreshGroup()
+      showFeedback('renewed')
     },
   }))
 
@@ -83,15 +82,19 @@
     },
   }))
 
-  const COPIED_MS = 2000
-  let copied = $state(false)
-  let copiedTimer: ReturnType<typeof setTimeout> | undefined
+  const FEEDBACK_MS = 2000
+  let inviteFeedback = $state<'copied' | 'renewed' | null>(null)
+  let feedbackTimer: ReturnType<typeof setTimeout> | undefined
+
+  function showFeedback(kind: 'copied' | 'renewed') {
+    inviteFeedback = kind
+    clearTimeout(feedbackTimer)
+    feedbackTimer = setTimeout(() => (inviteFeedback = null), FEEDBACK_MS)
+  }
 
   async function copyInvite() {
     await navigator.clipboard.writeText(inviteUrl)
-    copied = true
-    clearTimeout(copiedTimer)
-    copiedTimer = setTimeout(() => (copied = false), COPIED_MS)
+    showFeedback('copied')
   }
 
   function shareInvite() {
@@ -154,9 +157,17 @@
           <Button onclick={shareInvite}><Share2Icon /> Share</Button>
         {/if}
         <Button variant={canShare ? 'outline' : 'default'} class="min-w-26" onclick={copyInvite}>
-          {#if copied}<CheckIcon /> Copied{:else}<CopyIcon /> Copy{/if}
+          {#if inviteFeedback === 'copied'}<CheckIcon /> Copied{:else}<CopyIcon /> Copy{/if}
         </Button>
-        <Button variant="ghost" onclick={() => (confirmResetInvite = true)}><RefreshCwIcon /> New link</Button>
+        <Button variant="ghost" disabled={resetInvite.isPending} onclick={() => (confirmResetInvite = true)}>
+          {#if resetInvite.isPending}
+            <RefreshCwIcon class="animate-spin" /> Creating…
+          {:else if inviteFeedback === 'renewed'}
+            <CheckIcon /> New link created
+          {:else}
+            <RefreshCwIcon /> New link
+          {/if}
+        </Button>
       </div>
     </Card.Content>
   </Card.Root>
@@ -214,15 +225,10 @@
   onConfirm={() => memberToRemove && removeMember.mutate(memberToRemove.id)}
 />
 
-<AlertDialog.Root bind:open={confirmResetInvite}>
-  <AlertDialog.Content>
-    <AlertDialog.Header>
-      <AlertDialog.Title>Create a new invite link?</AlertDialog.Title>
-      <AlertDialog.Description>The current link stops working. Current members stay in the group.</AlertDialog.Description>
-    </AlertDialog.Header>
-    <AlertDialog.Footer>
-      <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-      <AlertDialog.Action onclick={() => resetInvite.mutate()}>Create new link</AlertDialog.Action>
-    </AlertDialog.Footer>
-  </AlertDialog.Content>
-</AlertDialog.Root>
+<ConfirmDialog
+  bind:open={confirmResetInvite}
+  title="Create a new invite link?"
+  description="The current link stops working. Current members stay in the group."
+  confirmLabel="Create new link"
+  onConfirm={() => resetInvite.mutate()}
+/>
