@@ -21,6 +21,9 @@ function log(user = 'a', amount = 10, date = '2026-11-23', component = 'push', g
   refresh(goal)
   return id
 }
+const migrateFrom = (version: string) => {
+  for (const file of readdirSync('migrations').sort().filter((f) => f >= version)) db.exec(readFileSync(`migrations/${file}`, 'utf8'))
+}
 function setup(scoped = true) {
   db = new DatabaseSync(':memory:')
   db.exec('PRAGMA foreign_keys = ON')
@@ -32,7 +35,7 @@ function setup(scoped = true) {
     INSERT INTO components VALUES ('push', 'goal', 'Push-ups', 'reps', 1000, 2, 0),
       ('run', 'goal', 'Running', 'miles', 100, 10, 1), ('km', 'goal', 'Running', 'km', 100, 6, 2),
       ('squat', 'goal', 'Squats', 'reps', 1000, 1, 3), ('sit', 'goal', 'Sit ups', 'reps', 1000, 1, 4);`)
-  if (scoped) db.exec(readFileSync('migrations/0007_dg_achievements.sql', 'utf8'))
+  if (scoped) migrateFrom('0007')
 }
 beforeEach(() => setup())
 afterEach(() => db.close())
@@ -133,13 +136,13 @@ function otherGroup(name = 'Another group') {
     INSERT INTO components VALUES ('outside-push', 'outside-goal', 'Pushups', 'reps', 100, 1, 0);`)
 }
 
-describe('DG-only scope', () => {
-  it('ignores other groups even when the same member contributes there', () => {
+describe('DG-only titles', () => {
+  it('ignores other groups for titles but awards crowns there', () => {
     otherGroup()
     for (let i = 0; i < 28; i++) log('a', 1000, addDays('2026-11-23', i), 'outside-push', 'outside-goal')
     expect(titles()).toEqual([])
-    expect(db.prepare('SELECT * FROM goal_crowns').all()).toEqual([])
-    expect(db.prepare('SELECT * FROM crown_records').all()).toEqual([])
+    expect(db.prepare("SELECT category, user_id FROM goal_crowns WHERE goal_id = 'outside-goal' ORDER BY category").all())
+      .toEqual([{ category: 'days', user_id: 'a' }, { category: 'points', user_id: 'a' }, { category: 'pushups', user_id: 'a' }])
     log('a', 10)
     expect(titles()).toEqual(['initiate'])
     expect(crown()?.total).toBe(10)
@@ -159,15 +162,15 @@ describe('DG-only scope', () => {
     expect(titles()).toEqual(['initiate'])
     expect(db.prepare('SELECT group_id FROM achievement_groups').get()?.group_id).toBe('group')
   })
-  it.each(['missing', 'ambiguous'])('disables all achievements if the initial DG match is %s', (scenario) => {
+  it.each(['missing', 'ambiguous'])('disables titles but keeps crowns if the initial DG match is %s', (scenario) => {
     db.close(); setup(false)
     if (scenario === 'missing') db.exec("UPDATE groups SET name = 'Not DG'")
     else otherGroup('DG (Daddy Gainz)')
-    db.exec(readFileSync('migrations/0007_dg_achievements.sql', 'utf8'))
+    migrateFrom('0007')
     log()
     expect(db.prepare('SELECT * FROM achievement_groups').all()).toEqual([])
     expect(titles()).toEqual([])
-    expect(crown()).toBeUndefined()
+    expect(crown()?.total).toBe(10)
   })
   it('cleans up account-wide awards from outside DG during migration', () => {
     db.close(); setup(false)

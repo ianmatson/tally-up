@@ -29,35 +29,35 @@
   }))
 </script>
 
-{#if group.achievementsEnabled}
-  <div class="space-y-4 rounded-[14px] bg-secondary/60 px-4 py-3.5 text-sm">
-    {#if goal}
-      <section aria-label="Crowns">
-        <h3 class="text-xs font-medium text-muted-foreground">Crowns</h3>
-        {#if crowns.length}
-          <ul class="mt-2 flex flex-col gap-2.5">
-            {#each crowns as crown (crown.category)}
-              <li class="flex items-center gap-3">
-                <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-highlight text-highlight-foreground" aria-hidden="true">
-                  <CrownIcon class="size-3.5" />
-                </span>
-                <div class="min-w-0 flex-1 leading-tight">
-                  <div class="truncate font-medium">{CROWNS[crown.category].name}</div>
-                  <div class="truncate text-xs text-muted-foreground">{CROWNS[crown.category].label}</div>
-                </div>
-                <span class="tabular shrink-0 font-medium">{formatAmount(crown.total, CROWNS[crown.category].unit)}</span>
-              </li>
-            {/each}
-          </ul>
-        {:else}
-          <p class="mt-1 text-muted-foreground">None yet. Lead a category in this goal to take one.</p>
-        {/if}
-        {#if formerCrowns.length}
-          <p class="mt-2 text-xs text-muted-foreground">Previously held {formerCrowns.map((r) => CROWNS[r.category].name).join(', ')}</p>
-        {/if}
-      </section>
-    {/if}
+<div class="space-y-4 rounded-[14px] bg-secondary/60 px-4 py-3.5 text-sm">
+  {#if goal}
+    <section aria-label="Crowns">
+      <h3 class="text-xs font-medium text-muted-foreground">Crowns</h3>
+      {#if crowns.length}
+        <ul class="mt-2 flex flex-col gap-2.5">
+          {#each crowns as crown (crown.category)}
+            <li class="flex items-center gap-3">
+              <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-highlight text-highlight-foreground" aria-hidden="true">
+                <CrownIcon class="size-3.5" />
+              </span>
+              <div class="min-w-0 flex-1 leading-tight">
+                <div class="truncate font-medium">{CROWNS[crown.category].name}</div>
+                <div class="truncate text-xs text-muted-foreground">{CROWNS[crown.category].label}</div>
+              </div>
+              <span class="tabular shrink-0 font-medium">{formatAmount(crown.total, CROWNS[crown.category].unit)}</span>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="mt-1 text-muted-foreground">None yet. Lead a category in this goal to take one.</p>
+      {/if}
+      {#if formerCrowns.length}
+        <p class="mt-2 text-xs text-muted-foreground">Previously held {formerCrowns.map((r) => CROWNS[r.category].name).join(', ')}</p>
+      {/if}
+    </section>
+  {/if}
 
+  {#if group.achievementsEnabled}
     <section aria-label="Titles">
       <h3 class="text-xs font-medium text-muted-foreground">Titles{isMe && earned.size ? ' · tap one to show it' : ''}</h3>
       <ul class="mt-2 flex flex-wrap gap-1.5">
@@ -103,5 +103,5 @@
         <p class="mt-2 text-xs text-muted-foreground">Every title unlocked.</p>
       {/if}
     </section>
-  </div>
-{/if}
+  {/if}
+</div>

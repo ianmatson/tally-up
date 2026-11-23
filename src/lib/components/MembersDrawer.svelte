@@ -17,6 +17,7 @@
   let expanded = $state<string | null>(null)
   $effect(() => { if (open) expanded = user.id })
 
+  const hasHonors = $derived(!!goal || !!group.achievementsEnabled)
   const joined = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 </script>
 
@@ -30,14 +31,14 @@
       </Drawer.Header>
       <ul class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4">
         {#each group.members as member (member.id)}
-          {@const crownCount = group.achievementsEnabled ? (goal?.crowns?.filter((c) => c.userId === member.id).length ?? 0) : 0}
-          {@const isOpen = group.achievementsEnabled && expanded === member.id}
+          {@const crownCount = goal?.crowns?.filter((c) => c.userId === member.id).length ?? 0}
+          {@const isOpen = hasHonors && expanded === member.id}
           <li>
             <button
               type="button"
               class="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors enabled:hover:bg-accent"
-              aria-expanded={group.achievementsEnabled ? isOpen : undefined}
-              disabled={!group.achievementsEnabled}
+              aria-expanded={hasHonors ? isOpen : undefined}
+              disabled={!hasHonors}
               onclick={() => (expanded = isOpen ? null : member.id)}
             >
               <UserAvatar name={member.name} avatarUrl={member.avatarUrl} size="lg" tone={member.id === user.id ? 'highlight' : 'muted'} />
@@ -51,7 +52,7 @@
                 </div>
               </div>
               {#if member.id === group.ownerId}<Badge variant="highlight">Admin</Badge>{/if}
-              {#if group.achievementsEnabled}
+              {#if hasHonors}
                 <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
               {/if}
             </button>

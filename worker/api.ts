@@ -327,8 +327,8 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
          JOIN entries e ON e.id = c.entry_id WHERE e.goal_id = ? ORDER BY c.created_at`,
       )
       .bind(goalId),
-    db.prepare('SELECT category, user_id AS userId, total FROM goal_crowns WHERE goal_id = ? AND goal_id IN (SELECT id FROM goals WHERE group_id IN (SELECT group_id FROM achievement_groups))').bind(goalId),
-    db.prepare('SELECT category, user_id AS userId, earned_at AS earnedAt FROM crown_records WHERE goal_id = ? AND goal_id IN (SELECT id FROM goals WHERE group_id IN (SELECT group_id FROM achievement_groups))').bind(goalId),
+    db.prepare('SELECT category, user_id AS userId, total FROM goal_crowns WHERE goal_id = ?').bind(goalId),
+    db.prepare('SELECT category, user_id AS userId, earned_at AS earnedAt FROM crown_records WHERE goal_id = ?').bind(goalId),
   ])).slice(refresh.length)
   const goal = (access.results[0] as GoalRow | undefined) ?? notFound()
   const commentsByEntry = new Map<string, Comment[]>()

@@ -168,7 +168,7 @@
             <span class="h-[3px] w-3 shrink-0 rounded-full" style="background: {memberColor(member.id)}" aria-hidden="true"></span>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} tone={isMe ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <MemberNameLine {member} label="{member.name}{isMe ? ' (you)' : ''}" crowns={goal.crowns} showHonors={!!group.achievementsEnabled} class="text-sm" />
+              <MemberNameLine {member} label="{member.name}{isMe ? ' (you)' : ''}" crowns={goal.crowns} showTitle={!!group.achievementsEnabled} class="text-sm" />
               <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
             </div>
             <div class="shrink-0 text-right">
@@ -189,7 +189,7 @@
                 <dd class="tabular text-right font-medium">{formatPoints(part.points)} pts</dd>
               {/each}
             </dl>
-            {#if group.achievementsEnabled}<div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
+            <div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
           {/if}
         </li>
       {/each}
