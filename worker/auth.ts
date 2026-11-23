@@ -162,9 +162,11 @@ auth.get('/google/callback', async (c) => {
   return c.redirect(next)
 })
 
+export const clearSessionCookie = (c: Context) => deleteCookie(c, SESSION_COOKIE, { path: '/' })
+
 auth.post('/logout', async (c) => {
   const token = getCookie(c, SESSION_COOKIE)
   if (token) await c.env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(await sessionIdFor(token)).run()
-  deleteCookie(c, SESSION_COOKIE, { path: '/' })
+  clearSessionCookie(c)
   return c.body(null, 204)
 })

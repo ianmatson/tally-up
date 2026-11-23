@@ -23,7 +23,8 @@
   import { formatClockMinutes } from '$lib/format'
   import { notificationsQuery } from '$lib/queries'
   import { currentSubscription, idleDeviceState, pushSupport, saveSubscription, subscribeDevice, unsubscribeDevice } from '$lib/push'
-  import { signOut } from '$lib/session'
+  import { deleteAccount, signOut } from '$lib/session'
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
   import { cn } from '$lib/utils'
 
   let { user }: { user: User } = $props()
@@ -44,6 +45,18 @@
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   let profileOpen = $state(false)
+  let confirmDelete = $state(false)
+  let deleting = $state(false)
+
+  async function removeAccount() {
+    deleting = true
+    try {
+      await deleteAccount(user.id)
+    } catch (error) {
+      deleting = false
+      toast.error(error instanceof Error ? error.message : 'Could not delete your account')
+    }
+  }
   let device = $state<DeviceState>(pushSupport === 'supported' ? 'checking' : 'off')
   let deviceBusy = $state(false)
 
@@ -252,8 +265,22 @@
       <Button variant="outline" class="flex-1" onclick={() => (profileOpen = true)}>Edit profile</Button>
       <Button variant="ghost" class="flex-1" onclick={signOut}>Sign out</Button>
     </div>
+    <div class="mt-5 flex flex-col items-start gap-1 border-t pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <p class="text-xs text-muted-foreground">Remove your account and everything you logged.</p>
+      <Button variant="ghost" size="sm" class="-mx-2.5 text-destructive hover:text-destructive" disabled={deleting} onclick={() => (confirmDelete = true)}>
+        {deleting ? 'Deleting…' : 'Delete account'}
+      </Button>
+    </div>
   </section>
 </main>
+
+<ConfirmDialog
+  bind:open={confirmDelete}
+  title="Delete your account?"
+  description="This deletes your profile, everything you logged, and your comments and reactions. Groups you run move to the member who joined after you, and groups where you are the only member are deleted. You cannot undo this."
+  confirmLabel="Delete account"
+  onConfirm={removeAccount}
+/>
 
 <Drawer.Root bind:open={profileOpen}>
   <Drawer.Content>
