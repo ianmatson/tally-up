@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { titleName } from '$shared/achievements'
   import { formatAmount } from '$shared/units'
   import MessageCircleIcon from '@lucide/svelte/icons/message-circle'
   import type { Component, Entry, Member } from '$shared/api'
@@ -49,9 +48,6 @@
           {formatWhen(entry.occurredAt, now)}
         </time>
       </span>
-      {#if titleName(member?.selectedTitle)}
-        <span class="mt-0.5 block text-xs text-muted-foreground">{titleName(member?.selectedTitle)}</span>
-      {/if}
       {#if entry.note}
         <span class="mt-1.5 block w-fit max-w-full rounded-[14px] rounded-tl-[4px] bg-secondary px-3 py-1.5 text-sm break-words">{entry.note}</span>
       {/if}

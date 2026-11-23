@@ -1,7 +1,6 @@
 <script lang="ts">
-  import CrownBadge from '$lib/components/CrownBadge.svelte'
   import MemberHonors from '$lib/components/MemberHonors.svelte'
-  import { titleName } from '$shared/achievements'
+  import MemberNameLine from '$lib/components/MemberNameLine.svelte'
   import { formatAmount, unitFor, unitPlural, unitSingular } from '$shared/units'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
@@ -155,7 +154,6 @@
         {@const member = row.item.member}
         {@const isMe = member.id === user.id}
         {@const isOpen = expanded === member.id}
-        {@const crownCount = group.achievementsEnabled ? (goal.crowns?.filter((c) => c.userId === member.id).length ?? 0) : 0}
         <li
           class={cn('overflow-hidden rounded-card bg-card', isMe && 'ring-2 ring-highlight')}
           onpointerenter={() => (hovered = member.id)}
@@ -170,11 +168,7 @@
             <span class="h-[3px] w-3 shrink-0 rounded-full" style="background: {memberColor(member.id)}" aria-hidden="true"></span>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} tone={isMe ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-1.5">
-                <span class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}</span>
-                {#if crownCount}<CrownBadge count={crownCount} />{/if}
-              </div>
-              {#if group.achievementsEnabled && titleName(member.selectedTitle)}<div class="mt-0.5 text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
+              <MemberNameLine {member} label="{member.name}{isMe ? ' (you)' : ''}" crowns={goal.crowns} showHonors={!!group.achievementsEnabled} class="text-sm" />
               <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
             </div>
             <div class="shrink-0 text-right">
