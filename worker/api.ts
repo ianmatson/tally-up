@@ -17,7 +17,8 @@ import type {
   NotificationSettings,
 } from '../shared/api'
 import { todayIn } from '../shared/dates'
-import { firstName, formatNumber } from '../shared/format'
+import { firstName } from '../shared/format'
+import { formatAmount } from '../shared/units'
 import { normalizeReaction } from '../shared/social'
 import { type AppEnv, currentUser } from './auth'
 import { notifyUsers, type PushPayload } from './notifications'
@@ -402,7 +403,7 @@ async function notifyContribution(c: Context<AppEnv>, goal: GoalAccessRow, entry
     'contributions',
     (members.results as { user_id: string }[]).map((m) => m.user_id),
     {
-      title: `${firstName(c.get('user')!.name)} logged ${formatNumber(input.amount)} ${unit} ${name.toLowerCase()}`,
+      title: `${firstName(c.get('user')!.name)} logged ${formatAmount(input.amount, unit)} ${name.toLowerCase()}`,
       body: input.note ?? groupName,
       url: `/g/${goal.group_id}?entry=${entryId}`,
       tag: `contribution-${goal.group_id}-${userId(c)}`,
@@ -455,7 +456,7 @@ async function notifyComment(c: Context<AppEnv>, entry: SocialEntryRow, body: st
   const { results } = await c.env.DB.prepare('SELECT DISTINCT user_id FROM comments WHERE entry_id = ? AND user_id NOT IN (?, ?)')
     .bind(entry.id, actor.id, entry.user_id)
     .all<{ user_id: string }>()
-  const activity = `${formatNumber(entry.amount)} ${entry.unit} ${entry.component_name.toLowerCase()}`
+  const activity = `${formatAmount(entry.amount, entry.unit)} ${entry.component_name.toLowerCase()}`
   const payload = (title: string): PushPayload => ({
     title,
     body,

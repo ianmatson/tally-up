@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatAmount } from '$shared/units'
   import MessageCircleIcon from '@lucide/svelte/icons/message-circle'
   import type { Component, Entry, Member } from '$shared/api'
   import { formatDateTime, formatNumber, formatWhen, memberLabel } from '$lib/format'
@@ -23,6 +24,8 @@
   const isMine = $derived(entry.userId === userId)
   const authorName = (id: string) => memberLabel(membersById, id, userId)
   const shownComments = $derived(entry.comments.slice(-INLINE_COMMENTS))
+
+  const amountText = $derived(component ? formatAmount(entry.amount, component.unit) : formatNumber(entry.amount))
 </script>
 
 <article class="flex gap-3">
@@ -31,14 +34,14 @@
     <button
       type="button"
       class="-mx-2 -my-1 block w-[calc(100%+1rem)] rounded-xl px-2 py-1 text-left transition-colors hover:bg-accent"
-      aria-label="Open {isMine ? 'your' : `${authorName(entry.userId)}'s`} {formatNumber(entry.amount)} {component?.unit} {component?.name}, {formatDateTime(entry.occurredAt)}"
+      aria-label="Open {isMine ? 'your' : `${authorName(entry.userId)}'s`} {amountText} {component?.name}, {formatDateTime(entry.occurredAt)}"
       onclick={() => onOpen(false)}
     >
       <span class="flex items-baseline justify-between gap-3">
         <span class="min-w-0 text-sm">
           <span class="font-medium">{authorName(entry.userId)}</span>
           <span class="text-muted-foreground">logged</span>
-          <span class="tabular font-semibold">{formatNumber(entry.amount)} {component?.unit}</span>
+          <span class="tabular font-semibold">{amountText}</span>
           <span class="text-muted-foreground">{component?.name.toLowerCase()}</span>
         </span>
         <time class="shrink-0 text-xs text-muted-foreground" datetime={new Date(entry.occurredAt).toISOString()}>

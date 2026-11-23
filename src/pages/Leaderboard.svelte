@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatAmount, unitFor, unitPlural, unitSingular } from '$shared/units'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
   import HatchTrack from '$lib/components/HatchTrack.svelte'
@@ -89,7 +90,7 @@
   })
   const chartFormat = (n: number) => (selectedComponent ? formatNumber(n) : formatPoints(n))
   const chartLabel = $derived(
-    `Cumulative ${selectedComponent ? `${selectedComponent.name.toLowerCase()} (${selectedComponent.unit})` : 'points'} by member`,
+    `Cumulative ${selectedComponent ? `${selectedComponent.name.toLowerCase()} (${unitPlural(selectedComponent.unit)})` : 'points'} by member`,
   )
 
   const viewOptions = $derived([
@@ -125,7 +126,7 @@
         <div class="mb-3 flex items-baseline justify-between gap-3">
           <h2 id="chart-heading" class="font-semibold tracking-tight">Progress over time</h2>
           <span class="text-xs text-muted-foreground">
-            {selectedComponent ? `${selectedComponent.name} (${selectedComponent.unit})` : 'Points'}{evenShare ? '' : ' · last 7 days'}
+            {selectedComponent ? `${selectedComponent.name} (${unitPlural(selectedComponent.unit)})` : 'Points'}{evenShare ? '' : ' · last 7 days'}
           </span>
         </div>
         <ProgressChart
@@ -171,7 +172,7 @@
             </div>
             <div class="shrink-0 text-right">
               <div class="tabular font-semibold">{selectedComponent ? formatNumber(row.value) : formatPoints(row.value)}</div>
-              <div class="text-xs text-muted-foreground">{selectedComponent ? selectedComponent.unit : 'pts'} · {formatPercent(row.share)}</div>
+              <div class="text-xs text-muted-foreground">{selectedComponent ? unitFor(selectedComponent.unit, row.value) : 'pts'} · {formatPercent(row.share)}</div>
             </div>
             {#if !selectedComponent}
               <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
@@ -184,7 +185,7 @@
                 {@const total = componentTotals[component.id]}
                 <dt class="truncate">{component.name}</dt>
                 <dd class="tabular text-right text-muted-foreground">
-                  {formatNumber(part.amount)} {component.unit}{#if total > 0}&nbsp;·&nbsp;{formatPercent(part.amount / total)}{/if}
+                  {formatAmount(part.amount, component.unit)}{#if total > 0}&nbsp;·&nbsp;{formatPercent(part.amount / total)}{/if}
                 </dd>
                 <dd class="tabular text-right font-medium">{formatPoints(part.points)} pts</dd>
               {/each}
@@ -208,7 +209,7 @@
           <div class="flex items-baseline justify-between gap-3 py-2.5">
             <dt class="font-medium">{component.name}</dt>
             <dd class="tabular text-right">
-              {formatWeight(component.weight)} pts / {component.unit}
+              {formatWeight(component.weight)} pts / {unitSingular(component.unit)}
               <span class="block text-xs text-muted-foreground">{formatPoints(component.target * component.weight)} pts at target</span>
             </dd>
           </div>

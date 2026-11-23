@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatAmount } from '$shared/units'
   import PlusIcon from '@lucide/svelte/icons/plus'
   import ScaleIcon from '@lucide/svelte/icons/scale'
   import Trash2Icon from '@lucide/svelte/icons/trash-2'
@@ -173,6 +174,9 @@
             />
           </div>
         </div>
+        {#if row.unit.trim()}
+          <p class="text-xs text-muted-foreground">Shows as {formatAmount(1, row.unit.trim())} · {formatAmount(Number(row.target) > 1 ? Number(row.target) : 10, row.unit.trim())}</p>
+        {/if}
         {#if completionPoints(row) > 0}
           <p class="text-xs text-muted-foreground">
             Worth {formatPoints(completionPoints(row))} pts when complete

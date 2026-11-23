@@ -23,6 +23,7 @@
     "@tailwindcss/vite": "^4.3.5",
     "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^24.19.2",
+    "@types/pluralize": "^0.0.33",
     "bits-ui": "^2.21.0",
     "cn": "^0.5.2",
     "emoji-picker-element": "^1.29.1",
@@ -45,6 +46,7 @@
     "@pushforge/builder": "^2.0.5",
     "@tanstack/svelte-query": "^6.4.5",
     "arctic": "^3.7.0",
-    "hono": "^4.13.19"
+    "hono": "^4.13.19",
+    "pluralize": "^8.0.0"
   }
 }

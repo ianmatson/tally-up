@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { unitPlural } from '$shared/units'
   import { createMutation, useQueryClient } from '@tanstack/svelte-query'
   import { untrack } from 'svelte'
   import { toast } from 'svelte-sonner'
@@ -97,7 +98,7 @@
               bind:value={componentId}
               label="Activity"
               placeholder="Search activities"
-              options={goal.components.map((c) => ({ value: c.id, label: c.name, hint: c.unit }))}
+              options={goal.components.map((c) => ({ value: c.id, label: c.name, hint: unitPlural(c.unit) }))}
             />
           {:else}
           <div class={compactTiles ? 'flex flex-wrap gap-1.5' : 'grid grid-cols-2 gap-2'}>
@@ -118,7 +119,7 @@
                   <span class="font-medium">{component.name}</span>
                 {:else}
                   <span class="block font-medium">{component.name}</span>
-                  <span class="block text-xs opacity-70">{component.unit}</span>
+                  <span class="block text-xs opacity-70">{unitPlural(component.unit)}</span>
                 {/if}
               </button>
             {/each}
@@ -127,7 +128,7 @@
         </fieldset>
 
         <div class="flex flex-col gap-2">
-          <Label for="entry-amount">Amount{selected ? ` (${selected.unit})` : ''}</Label>
+          <Label for="entry-amount">Amount{selected ? ` (${unitPlural(selected.unit)})` : ''}</Label>
           <Input
             id="entry-amount"
             type="number"

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatAmount } from '$shared/units'
   import ArrowUpIcon from '@lucide/svelte/icons/arrow-up'
   import PencilIcon from '@lucide/svelte/icons/pencil'
   import Trash2Icon from '@lucide/svelte/icons/trash-2'
@@ -94,8 +95,7 @@
             <UserAvatar name={owner?.name ?? '?'} avatarUrl={owner?.avatarUrl ?? null} tone={entry.userId === user.id ? 'highlight' : 'muted'} />
             <div class="min-w-0">
               <Drawer.Title class="text-base font-semibold tracking-tight">
-                {authorName(entry.userId)} logged {formatNumber(entry.amount)}
-                {component?.unit}
+                {authorName(entry.userId)} logged {component ? formatAmount(entry.amount, component.unit) : formatNumber(entry.amount)}
                 {component?.name.toLowerCase()}
               </Drawer.Title>
               <Drawer.Description>{formatDateTime(entry.occurredAt)}</Drawer.Description>

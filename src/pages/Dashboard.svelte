@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatAmount } from '$shared/units'
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
   import type { Entry, GoalDetail, GroupDetail, User } from '$shared/api'
   import { daysBetween } from '$shared/dates'
@@ -172,7 +173,7 @@
                 <div class="flex items-baseline justify-between gap-3 text-sm">
                   <span class="font-medium">{item.component.name}</span>
                   <span class="tabular text-muted-foreground">
-                    {formatNumber(item.total)} / {formatNumber(item.component.target)} {item.component.unit}
+                    {formatNumber(item.total)} / {formatAmount(item.component.target, item.component.unit)}
                   </span>
                 </div>
                 <HatchTrack
@@ -185,10 +186,10 @@
                 {:else if progress.phase === 'active'}
                   <span class="flex justify-between gap-3 text-xs text-muted-foreground">
                     <span>
-                      <span class="tabular font-medium text-foreground">{formatNumber(Math.abs(item.aheadBy))}</span>
+                      <span class="tabular font-medium text-foreground">{formatAmount(Math.abs(item.aheadBy), item.component.unit)}</span>
                       {item.aheadBy >= 0 ? 'ahead of' : 'behind'} pace
                     </span>
-                    <span class="tabular">{formatNumber(item.neededPerDay)}/day to finish</span>
+                    <span class="tabular">{formatNumber(item.neededPerDay / group.members.length)}/day{group.members.length > 1 ? ' each' : ''} to finish</span>
                   </span>
                 {/if}
               </li>
