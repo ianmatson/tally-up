@@ -19,8 +19,9 @@ import type {
 import { todayIn } from '../shared/dates'
 import { firstName, formatNumber } from '../shared/format'
 import { normalizeReaction } from '../shared/social'
-import type { AppEnv } from './auth'
+import { type AppEnv, currentUser } from './auth'
 import { notifyUsers, type PushPayload } from './notifications'
+import { profile } from './profile'
 import {
   ALL_DAYS_MASK,
   badRequest,
@@ -58,7 +59,7 @@ function forbidden(): never {
   throw new HTTPException(403, { message: 'Only the group admin can do this' })
 }
 
-const userId = (c: Context<AppEnv>) => c.get('user')!.id
+const userId = (c: Context<AppEnv>) => currentUser(c).id
 
 
 function inBackground(c: Context<AppEnv>, work: Promise<unknown>) {
@@ -141,6 +142,8 @@ api.use(async (c, next) => {
   if (!c.get('user')) throw new HTTPException(401, { message: 'Sign in to continue' })
   await next()
 })
+
+api.route('/me', profile)
 
 api.get('/groups', async (c) => {
   const { results } = await c.env.DB.prepare(

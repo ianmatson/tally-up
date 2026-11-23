@@ -9,15 +9,16 @@
     card: 'bg-card text-foreground',
   }
 
-  let { name, avatarUrl, size = 'default', tone = 'muted' }: {
+  let { name, avatarUrl, size = 'default', tone = 'muted', class: className }: {
     name: string
     avatarUrl: string | null
     size?: 'sm' | 'default' | 'lg'
     tone?: keyof typeof TONES
+    class?: string
   } = $props()
 </script>
 
-<Avatar.Root {size}>
+<Avatar.Root {size} class={className}>
   {#if avatarUrl}
     <Avatar.Image src={avatarUrl} alt="" referrerpolicy="no-referrer" />
   {/if}

@@ -9,11 +9,13 @@ import { DAY_MS } from '../shared/dates'
 export type AppEnv = { Bindings: Env; Variables: { user: User | null } }
 
 const SESSION_COOKIE = 'session'
+export const UPLOADED_AVATAR_PREFIX = '/avatars/'
+const EMAIL_ONLY_PREFIX = 'email:'
 const SESSION_TTL_MS = 30 * DAY_MS
 const SESSION_RENEW_WITHIN_MS = 15 * DAY_MS
 const OAUTH_COOKIE_MAX_AGE_S = 600
 
-type GoogleClaims = { sub: string; email: string; name?: string; picture?: string }
+type GoogleClaims = { sub: string; email: string; email_verified?: boolean; hd?: string; name?: string; picture?: string }
 
 type SessionRow = {
   expires_at: number
@@ -48,8 +50,55 @@ const toHex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).pad
 
 const randomToken = () => toHex(crypto.getRandomValues(new Uint8Array(24)))
 
-async function sessionIdFor(token: string): Promise<string> {
-  return toHex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))))
+export async function sha256Hex(text: string): Promise<string> {
+  return toHex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))))
+}
+
+const sessionIdFor = sha256Hex
+
+export async function startSession(c: Context<AppEnv>, userId: string) {
+  const token = randomToken()
+  await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)')
+    .bind(await sessionIdFor(token), userId, Date.now() + SESSION_TTL_MS)
+    .run()
+  setCookie(c, SESSION_COOKIE, token, cookieOptions(c, SESSION_TTL_MS / 1000))
+}
+
+export async function userIdByEmail(db: D1Database, email: string): Promise<string | null> {
+  const row = await db.prepare('SELECT id FROM users WHERE lower(email) = lower(?) ORDER BY created_at LIMIT 1').bind(email).first<{ id: string }>()
+  return row?.id ?? null
+}
+
+export const currentUser = (c: Context<AppEnv>) => c.get('user')!
+
+export async function insertUser(db: D1Database, user: { email: string; googleSub?: string; name?: string; avatarUrl?: string }) {
+  const id = crypto.randomUUID()
+  await db
+    .prepare('INSERT INTO users (id, google_sub, email, name, avatar_url, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(id, user.googleSub ?? `${EMAIL_ONLY_PREFIX}${id}`, user.email, user.name ?? '', user.avatarUrl ?? null, Date.now())
+    .run()
+  return id
+}
+
+const googleOwnsEmail = (claims: GoogleClaims) => claims.email_verified === true && (claims.email.toLowerCase().endsWith('@gmail.com') || !!claims.hd)
+
+async function googleUserId(db: D1Database, claims: GoogleClaims): Promise<string> {
+  const refresh = (where: string, key: string) =>
+    db
+      .prepare(
+        `UPDATE users SET google_sub = ?1, email = ?2,
+           name = CASE WHEN name = '' THEN ?3 ELSE name END,
+           avatar_url = CASE WHEN avatar_url IS NULL OR avatar_url LIKE '${UPLOADED_AVATAR_PREFIX}%' THEN avatar_url ELSE ?4 END
+         WHERE ${where} RETURNING id`,
+      )
+      .bind(claims.sub, claims.email, claims.name ?? '', claims.picture ?? null, key)
+      .first<{ id: string }>()
+  const linked =
+    (await refresh('google_sub = ?5', claims.sub)) ??
+    (googleOwnsEmail(claims)
+      ? await refresh(`id = (SELECT id FROM users WHERE lower(email) = lower(?5) AND google_sub LIKE '${EMAIL_ONLY_PREFIX}%' ORDER BY created_at LIMIT 1)`, claims.email)
+      : null)
+  return linked?.id ?? insertUser(db, { email: claims.email, googleSub: claims.sub, name: claims.name, avatarUrl: claims.picture })
 }
 
 export const loadUser = createMiddleware<AppEnv>(async (c, next) => {
@@ -109,21 +158,7 @@ auth.get('/google/callback', async (c) => {
     return c.text('Sign-in failed. Go back and try again.', 400)
   }
 
-  const now = Date.now()
-  const user = await c.env.DB.prepare(
-    `INSERT INTO users (id, google_sub, email, name, avatar_url, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT (google_sub) DO UPDATE SET email = excluded.email, name = excluded.name, avatar_url = excluded.avatar_url
-     RETURNING id`,
-  )
-    .bind(crypto.randomUUID(), claims.sub, claims.email, claims.name ?? 'Tally Up member', claims.picture ?? null, now)
-    .first<{ id: string }>()
-
-  const token = randomToken()
-  await c.env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)')
-    .bind(await sessionIdFor(token), user!.id, now + SESSION_TTL_MS)
-    .run()
-  setCookie(c, SESSION_COOKIE, token, cookieOptions(c, SESSION_TTL_MS / 1000))
+  await startSession(c, await googleUserId(c.env.DB, claims))
   return c.redirect(next)
 })
 

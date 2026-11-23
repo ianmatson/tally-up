@@ -1,5 +1,6 @@
 export const LIMITS = {
   name: 60,
+  loginCode: 6,
   unit: 20,
   note: 200,
   comment: 500,

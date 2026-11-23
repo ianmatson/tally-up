@@ -18,6 +18,8 @@
       "migrations_dir": "migrations"
     }
   ],
+  "send_email": [{ "name": "EMAIL" }],
+  "ratelimits": [{ "name": "LOGIN_RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }],
   "vars": {
     "VAPID_PUBLIC_KEY": "BEDuAfyEu76_ZFZFLlDEelG2Tr4U7g0X117CjA_2-GplPHoWVNneb-1Cmw2gvJID2BNv-sT88eyR8tWJ0WmRc5o"
   },

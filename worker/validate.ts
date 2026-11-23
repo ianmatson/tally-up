@@ -148,3 +148,28 @@ export function parseEndpoint(value: unknown): string {
   if (typeof endpoint !== 'string') badRequest('Push endpoint is not valid')
   return endpoint
 }
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_MAX = 254
+const LOGIN_CODE_PATTERN = new RegExp(`^\\d{${LIMITS.loginCode}}$`)
+
+function email(value: unknown): string {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  if (normalized.length > EMAIL_MAX || !EMAIL_PATTERN.test(normalized)) badRequest('Enter a valid email address')
+  return normalized
+}
+
+export function parseEmailStart(value: unknown): string {
+  return email(asBody(value).email)
+}
+
+export function parseEmailCode(value: unknown): { email: string; code: string } {
+  const body = asBody(value)
+  const code = typeof body.code === 'string' ? body.code.trim() : ''
+  if (!LOGIN_CODE_PATTERN.test(code)) badRequest('Enter the 6-digit code')
+  return { email: email(body.email), code }
+}
+
+export function parseProfile(value: unknown): string {
+  return text(asBody(value).name, 'Name')
+}

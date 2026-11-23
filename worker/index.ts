@@ -3,8 +3,10 @@ import { csrf } from 'hono/csrf'
 import { HTTPException } from 'hono/http-exception'
 import { api } from './api'
 import { type AppEnv, auth, loadUser } from './auth'
+import { emailAuth, purgeExpiredCodes } from './email-auth'
 import { invitePage } from './invite-page'
 import { sendReminders } from './notifications'
+import { avatarImage } from './profile'
 
 const CANONICAL_ORIGIN = 'https://tally.ianm.app'
 const LEGACY_HOST_SUFFIX = '.workers.dev'
@@ -19,8 +21,10 @@ app.use(async (c, next) => {
 app.use(csrf())
 app.use('/api/*', loadUser)
 app.route('/auth', auth)
+app.route('/api/auth/email', emailAuth)
 app.route('/api', api)
 app.get('/join/:code', invitePage)
+app.get('/avatars/:userId', avatarImage)
 
 app.notFound((c) => (c.req.path.startsWith('/api/') ? c.json({ error: 'Not found' }, 404) : c.env.ASSETS.fetch(c.req.raw)))
 
@@ -32,5 +36,5 @@ app.onError((err, c) => {
 
 export default {
   fetch: app.fetch,
-  scheduled: (_controller, env, ctx) => ctx.waitUntil(sendReminders(env)),
+  scheduled: (_controller, env, ctx) => ctx.waitUntil(Promise.all([sendReminders(env), purgeExpiredCodes(env)])),
 } satisfies ExportedHandler<Env>

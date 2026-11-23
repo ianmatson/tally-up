@@ -13,6 +13,9 @@
   import { isStandalone, platform } from '$lib/install.svelte'
   import LoadError from '$lib/components/LoadError.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
+  import ProfileForm from '$lib/components/ProfileForm.svelte'
+  import DrawerCloseButton from '$lib/components/DrawerCloseButton.svelte'
+  import * as Drawer from '$lib/components/ui/drawer'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
   import { Button } from '$lib/components/ui/button'
   import { Skeleton } from '$lib/components/ui/skeleton'
@@ -40,6 +43,7 @@
   const settings = $derived(config.data?.settings)
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
+  let profileOpen = $state(false)
   let device = $state<DeviceState>(pushSupport === 'supported' ? 'checking' : 'off')
   let deviceBusy = $state(false)
 
@@ -243,10 +247,28 @@
         <div class="truncate font-medium">{user.name}</div>
         <div class="truncate text-sm text-muted-foreground">{user.email}</div>
       </div>
-      <Button variant="outline" onclick={signOut}>Sign out</Button>
+    </div>
+    <div class="mt-4 flex gap-2">
+      <Button variant="outline" class="flex-1" onclick={() => (profileOpen = true)}>Edit profile</Button>
+      <Button variant="ghost" class="flex-1" onclick={signOut}>Sign out</Button>
     </div>
   </section>
 </main>
+
+<Drawer.Root bind:open={profileOpen}>
+  <Drawer.Content>
+    <div class="mx-auto w-full max-w-md px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <Drawer.Header class="relative px-0 pt-3 pb-4 text-left">
+        <Drawer.Title class="pr-10 text-xl font-semibold tracking-tight">Edit profile</Drawer.Title>
+        <Drawer.Description>Your groups see this name and photo.</Drawer.Description>
+        <DrawerCloseButton />
+      </Drawer.Header>
+      {#key profileOpen}
+        <ProfileForm {user} submitLabel="Save" onSaved={() => (profileOpen = false)} />
+      {/key}
+    </div>
+  </Drawer.Content>
+</Drawer.Root>
 
 {#snippet toggleRow(key: 'reminders' | 'contributions' | 'comments', title: string, hint: string)}
   <label class="flex items-start justify-between gap-4">

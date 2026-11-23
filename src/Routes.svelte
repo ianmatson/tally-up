@@ -7,6 +7,7 @@
   import Home from './pages/Home.svelte'
   import Join from './pages/Join.svelte'
   import NotFound from './pages/NotFound.svelte'
+  import ProfileSetup from './pages/ProfileSetup.svelte'
   import Settings from './pages/Settings.svelte'
   import SignIn from './pages/SignIn.svelte'
 
@@ -26,6 +27,8 @@
   </main>
 {:else if !me.data}
   <SignIn />
+{:else if !me.data.name}
+  <ProfileSetup user={me.data} />
 {:else if route.name === 'home' || route.name === 'groups'}
   <Home user={me.data} pickGroup={route.name === 'groups'} />
 {:else if route.name === 'settings'}

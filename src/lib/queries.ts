@@ -12,9 +12,9 @@ function signOutOnExpiredSession(error: Error) {
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({ onError: signOutOnExpiredSession }),
   mutationCache: new MutationCache({
-    onError: (error) => {
+    onError: (error, _variables, _context, mutation) => {
       signOutOnExpiredSession(error)
-      toast.error(error.message)
+      if (!mutation.meta?.inlineError) toast.error(error.message)
     },
   }),
   defaultOptions: {

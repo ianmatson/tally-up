@@ -13,8 +13,7 @@
   let canvas: HTMLCanvasElement
 
   onMount(() => {
-    const context = canvas.getContext('2d')
-    if (!context) return
+    const context = canvas.getContext('2d')!
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
     let flakes: Flake[] = []
     let width = 0
