@@ -97,13 +97,13 @@
     const data = group.data
     if (!data) return
     if (awardsGroup !== data.id) { awardsGroup = data.id; titleBaseline = undefined }
-    const earned = data.earnedTitles?.filter((t) => t.userId === user.id) ?? []
+    const earned = data.achievementsEnabled ? data.earnedTitles?.filter((t) => t.userId === user.id) ?? [] : []
     if (titleBaseline) {
       for (const title of earned.filter((t) => !titleBaseline!.has(t.titleId))) {
         const titleId: TitleId = title.titleId
         toast.success(`You're now ${titleName(titleId)}.`, {
           action: { label: 'Equip title', onClick: () => {
-            api('/me/title', { method: 'PUT', body: { titleId } })
+            api(`/groups/${data.id}/title`, { method: 'PUT', body: { titleId } })
               .then(() => queryClient.invalidateQueries({ queryKey: ['group'] }))
               .catch((error: Error) => toast.error(error.message))
           } },

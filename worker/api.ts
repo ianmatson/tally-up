@@ -1,4 +1,4 @@
-import { achievementStatements } from './achievements'
+import { achievementStatements, GROUP_TITLES_SQL, EQUIP_TITLE_SQL } from './achievements'
 import { TITLES, type EarnedTitle, type Crown, type CrownRecord } from '../shared/achievements'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
@@ -38,14 +38,15 @@ import {
   parseSubscription,
 } from './validate'
 
-type GroupRow = { id: string; name: string; owner_id: string; timezone: string; invite_code: string }
+type GroupRow = { id: string; name: string; owner_id: string; timezone: string; invite_code: string; achievements_enabled: number }
 type GoalRow = { id: string; group_id: string; name: string; start_date: string; end_date: string; archived_at: number | null }
 type GoalAccessRow = GoalRow & { owner_id: string; timezone: string }
 
 const INVITE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'
 const INVITE_LENGTH = 10
 
-const MEMBER_GROUP_SQL = `SELECT g.id, g.name, g.owner_id, g.timezone, g.invite_code FROM groups g
+const MEMBER_GROUP_SQL = `SELECT g.id, g.name, g.owner_id, g.timezone, g.invite_code,
+  EXISTS (SELECT 1 FROM achievement_groups WHERE group_id = g.id) AS achievements_enabled FROM groups g
   JOIN memberships m ON m.group_id = g.id AND m.user_id = ?
   WHERE g.id = ?`
 
@@ -189,15 +190,14 @@ api.get('/groups/:groupId', async (c) => {
     db
       .prepare(
         `SELECT u.id, u.name, u.avatar_url AS avatarUrl, m.joined_at AS joinedAt,
-          COALESCE((SELECT title_id FROM title_preferences WHERE user_id = u.id),
-            (SELECT title_id FROM earned_titles WHERE user_id = u.id ORDER BY CASE title_id
+          COALESCE((SELECT title_id FROM group_title_preferences WHERE user_id = u.id AND group_id = m.group_id),
+            (SELECT title_id FROM group_earned_titles WHERE user_id = u.id AND group_id = m.group_id ORDER BY CASE title_id
               WHEN 'legend' THEN 28 WHEN 'veteran' THEN 14 WHEN 'disciple' THEN 7 WHEN 'acolyte' THEN 3 ELSE 1 END DESC LIMIT 1)) AS selectedTitle FROM users u JOIN memberships m ON m.user_id = u.id
          WHERE m.group_id = ? ORDER BY m.joined_at`,
       )
       .bind(groupId),
     db.prepare('SELECT * FROM goals WHERE group_id = ? ORDER BY created_at DESC').bind(groupId),
-    db.prepare(`SELECT user_id AS userId, title_id AS titleId, earned_at AS earnedAt FROM earned_titles
-      WHERE user_id IN (SELECT user_id FROM memberships WHERE group_id = ?)`).bind(groupId),
+    db.prepare(GROUP_TITLES_SQL).bind(groupId),
   ])
   const group = (access.results[0] as GroupRow | undefined) ?? notFound()
   const isOwner = group.owner_id === userId(c)
@@ -208,22 +208,22 @@ api.get('/groups/:groupId', async (c) => {
     ownerId: group.owner_id,
     isOwner,
     inviteCode: isOwner ? group.invite_code : null,
-    members: members.results as Member[],
-    earnedTitles: titles.results as EarnedTitle[],
+    members: (members.results as Member[]).map((m) => ({ ...m, selectedTitle: group.achievements_enabled === 1 ? m.selectedTitle : null })),
+    achievementsEnabled: group.achievements_enabled === 1,
+    earnedTitles: group.achievements_enabled === 1 ? titles.results as EarnedTitle[] : [],
     goals: (goals.results as GoalRow[]).map(toGoalSummary),
   }
   return c.json(detail)
 })
 
-api.put('/me/title', async (c) => {
+api.put('/groups/:groupId/title', async (c) => {
+  const group = await memberGroup(c.env.DB, c.req.param('groupId'), userId(c))
+  if (group.achievements_enabled !== 1) notFound()
   const body = await c.req.json<unknown>()
   if (!body || typeof body !== 'object' || !('titleId' in body)) badRequest('Choose a valid title')
   const titleId = body.titleId
   if (typeof titleId !== 'string' || !TITLES.some((t) => t.id === titleId)) badRequest('Choose a valid title')
-  const result = await c.env.DB.prepare(`INSERT INTO title_preferences (user_id, title_id)
-    SELECT user_id, title_id FROM earned_titles WHERE user_id = ? AND title_id = ?
-    ON CONFLICT (user_id) DO UPDATE SET title_id = excluded.title_id`)
-    .bind(userId(c), titleId).run()
+  const result = await c.env.DB.prepare(EQUIP_TITLE_SQL).bind(group.id, userId(c), titleId).run()
   if (!result.meta.changes) badRequest('You have not earned that title yet')
   return c.body(null, 204)
 })
@@ -328,8 +328,8 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
          JOIN entries e ON e.id = c.entry_id WHERE e.goal_id = ? ORDER BY c.created_at`,
       )
       .bind(goalId),
-    db.prepare('SELECT category, user_id AS userId, total FROM goal_crowns WHERE goal_id = ?').bind(goalId),
-    db.prepare('SELECT category, user_id AS userId, earned_at AS earnedAt FROM crown_records WHERE goal_id = ?').bind(goalId),
+    db.prepare('SELECT category, user_id AS userId, total FROM goal_crowns WHERE goal_id = ? AND goal_id IN (SELECT id FROM goals WHERE group_id IN (SELECT group_id FROM achievement_groups))').bind(goalId),
+    db.prepare('SELECT category, user_id AS userId, earned_at AS earnedAt FROM crown_records WHERE goal_id = ? AND goal_id IN (SELECT id FROM goals WHERE group_id IN (SELECT group_id FROM achievement_groups))').bind(goalId),
   ])
   const goal = (access.results[0] as GoalRow | undefined) ?? notFound()
   const commentsByEntry = new Map<string, Comment[]>()

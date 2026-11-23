@@ -28,16 +28,16 @@
       <ul class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-4">
         {#each group.members as member (member.id)}
           <li class="py-2">
-          <button type="button" class="flex w-full items-center gap-3 rounded-xl py-2 text-left hover:bg-accent" aria-expanded={expanded === member.id} onclick={() => expanded = expanded === member.id ? null : member.id}>
+          <button type="button" class="flex w-full items-center gap-3 rounded-xl py-2 text-left hover:bg-accent" aria-expanded={group.achievementsEnabled ? expanded === member.id : undefined} disabled={!group.achievementsEnabled} onclick={() => expanded = expanded === member.id ? null : member.id}>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} size="lg" tone={member.id === user.id ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <div class="truncate font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}{#if goal?.crowns?.some((c) => c.userId === member.id)} <span aria-label="Holds crowns">👑</span>{/if}</div>
-              {#if titleName(member.selectedTitle)}<div class="text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
+              <div class="truncate font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}{#if group.achievementsEnabled && goal?.crowns?.some((c) => c.userId === member.id)} <span aria-label="Holds crowns">👑</span>{/if}</div>
+              {#if group.achievementsEnabled && titleName(member.selectedTitle)}<div class="text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
               <div class="text-xs text-muted-foreground">Joined {joined.format(member.joinedAt)}</div>
             </div>
             {#if member.id === group.ownerId}<Badge variant="highlight">Admin</Badge>{/if}
           </button>
-          {#if expanded === member.id}<MemberHonors {member} {group} {goal} {today} userId={user.id} />{/if}
+          {#if group.achievementsEnabled && expanded === member.id}<MemberHonors {member} {group} {goal} {today} userId={user.id} />{/if}
           </li>
         {/each}
       </ul>
