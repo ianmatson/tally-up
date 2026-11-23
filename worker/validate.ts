@@ -20,8 +20,9 @@ function text(value: unknown, field: string, max: number = LIMITS.name): string 
   return trimmed
 }
 
-function positiveNumber(value: unknown, field: string): number {
+function positiveNumber(value: unknown, field: string, max: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) badRequest(`${field} must be greater than 0`)
+  if (value > max) badRequest(`${field} must be at most ${max.toLocaleString('en-US')}`)
   return value
 }
 
@@ -60,8 +61,8 @@ function parseComponent(value: unknown): ComponentInput {
     id: typeof body.id === 'string' ? body.id : undefined,
     name: text(body.name, 'Component name'),
     unit: text(body.unit, 'Unit', LIMITS.unit),
-    target: positiveNumber(body.target, 'Target'),
-    weight: positiveNumber(body.weight, 'Points per unit'),
+    target: positiveNumber(body.target, 'Target', LIMITS.target),
+    weight: positiveNumber(body.weight, 'Points per unit', LIMITS.amount),
   }
 }
 
@@ -81,7 +82,7 @@ export function parseGoal(value: unknown): GoalInput {
     startDate,
     endDate,
     components: body.components.map(parseComponent),
-    removedComponentIds: removed.filter((id): id is string => typeof id === 'string'),
+    removedComponentIds: removed.filter((id): id is string => typeof id === 'string').slice(0, LIMITS.components),
   }
 }
 
@@ -91,7 +92,7 @@ export function parseEntry(value: unknown): EntryInput {
   if (typeof body.componentId !== 'string') badRequest('Choose what you did')
   return {
     componentId: body.componentId,
-    amount: positiveNumber(body.amount, 'Amount'),
+    amount: positiveNumber(body.amount, 'Amount', LIMITS.amount),
     occurredAt: timestamp(body.occurredAt, 'Time'),
     note,
   }

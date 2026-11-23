@@ -140,6 +140,9 @@ api.get('/me', (c) => c.json({ user: c.get('user') }))
 
 api.use(async (c, next) => {
   if (!c.get('user')) throw new HTTPException(401, { message: 'Sign in to continue' })
+  if (c.req.method !== 'GET' && !(await c.env.WRITE_RATE_LIMITER.limit({ key: userId(c) })).success) {
+    throw new HTTPException(429, { message: 'You are going too fast. Wait a minute and try again.' })
+  }
   await next()
 })
 
@@ -304,7 +307,9 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
   const goal = (access.results[0] as GoalRow | undefined) ?? notFound()
   const commentsByEntry = new Map<string, Comment[]>()
   for (const { entryId, ...comment } of comments.results as (Comment & { entryId: string })[]) {
-    commentsByEntry.set(entryId, [...(commentsByEntry.get(entryId) ?? []), comment])
+    const list = commentsByEntry.get(entryId) ?? []
+    list.push(comment)
+    commentsByEntry.set(entryId, list)
   }
   const reactionsByEntry = new Map<string, Map<string, string[]>>()
   for (const r of reactions.results as { entryId: string; emoji: string; userId: string }[]) {
@@ -330,6 +335,11 @@ api.put('/goals/:goalId', async (c) => {
   const input = parseGoal(await c.req.json())
   const removedIds = input.removedComponentIds
   const db = c.env.DB
+  const kept = await db
+    .prepare(`SELECT COUNT(*) AS n FROM components WHERE goal_id = ? AND id NOT IN (${removedIds.map(() => '?').join(', ')})`)
+    .bind(goal.id, ...removedIds)
+    .first<{ n: number }>()
+  if (kept?.n !== input.components.filter((comp) => comp.id).length) badRequest('This goal changed while you were editing. Reload and try again.')
   await db.batch([
     db.prepare('UPDATE goals SET name = ?, start_date = ?, end_date = ? WHERE id = ?').bind(input.name, input.startDate, input.endDate, goal.id),
     db
@@ -395,7 +405,7 @@ async function notifyContribution(c: Context<AppEnv>, goal: GoalAccessRow, entry
       title: `${firstName(c.get('user')!.name)} logged ${formatNumber(input.amount)} ${unit} ${name.toLowerCase()}`,
       body: input.note ?? groupName,
       url: `/g/${goal.group_id}?entry=${entryId}`,
-      tag: `entry-${entryId}`,
+      tag: `contribution-${goal.group_id}-${userId(c)}`,
     },
   )
 }
@@ -482,6 +492,8 @@ api.delete('/comments/:commentId', async (c) => {
   return c.body(null, 204)
 })
 
+const MAX_DEVICES_PER_USER = 5
+
 const SINGLE_EMOJI = new RegExp('^\\p{RGI_Emoji}$', 'v')
 
 function reactionEmoji(c: Context<AppEnv>): string {
@@ -555,9 +567,15 @@ api.post('/push-subscriptions', async (c) => {
     db
       .prepare(
         `INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT (endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth`,
+         ON CONFLICT (endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, created_at = excluded.created_at`,
       )
       .bind(sub.endpoint, userId(c), sub.keys.p256dh, sub.keys.auth, Date.now()),
+    db
+      .prepare(
+        `DELETE FROM push_subscriptions WHERE user_id = ?1 AND endpoint NOT IN
+           (SELECT endpoint FROM push_subscriptions WHERE user_id = ?1 ORDER BY created_at DESC LIMIT ?2)`,
+      )
+      .bind(userId(c), MAX_DEVICES_PER_USER),
     db
       .prepare(
         'INSERT OR IGNORE INTO notification_settings (user_id, timezone) VALUES (?, ?)',

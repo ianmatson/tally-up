@@ -54,6 +54,6 @@ profile.delete('/avatar', async (c) => {
 
 export async function avatarImage(c: Context<AppEnv>) {
   const row = await c.env.DB.prepare('SELECT image FROM avatars WHERE user_id = ?').bind(c.req.param('userId')).first<{ image: number[] }>()
-  if (!row) return c.notFound()
+  if (!row) return c.body(null, 404)
   return c.body(new Uint8Array(row.image), 200, { 'content-type': AVATAR_TYPE, 'cache-control': IMMUTABLE })
 }
