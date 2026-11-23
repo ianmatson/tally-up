@@ -24,26 +24,7 @@ CREATE TABLE group_title_preferences (
     REFERENCES group_earned_titles(group_id, user_id, title_id) ON DELETE CASCADE
 );
 
-DROP VIEW eligible_titles;
 DROP VIEW crown_totals;
-CREATE VIEW eligible_titles AS
-WITH days AS (
-  SELECT DISTINCT e.goal_id, e.user_id, e.date
-  FROM entries e JOIN goals g ON g.id = e.goal_id
-  JOIN achievement_groups ag ON ag.group_id = g.group_id
-  WHERE e.amount > 0 AND e.date BETWEEN g.start_date AND g.end_date
-), islands AS (
-  SELECT *, julianday(date) - ROW_NUMBER() OVER (PARTITION BY goal_id, user_id ORDER BY date) AS island
-  FROM days
-), streaks AS (
-  SELECT goal_id, user_id, COUNT(*) AS days FROM islands GROUP BY goal_id, user_id, island
-), thresholds(title_id, days) AS (
-  VALUES ('initiate', 1), ('acolyte', 3), ('disciple', 7), ('veteran', 14), ('legend', 28)
-)
-SELECT DISTINCT g.group_id, s.goal_id, s.user_id, t.title_id FROM streaks s
-JOIN goals g ON g.id = s.goal_id JOIN thresholds t ON s.days >= t.days;
-
-
 CREATE VIEW crown_totals AS
 WITH activity AS (
   SELECT e.*, c.weight,
@@ -78,8 +59,22 @@ SELECT goal_id, user_id, category, ROUND(total, 8) AS total, first_at FROM value
 -- The initial feature was account-wide. Only carry over titles supported by
 -- DG activity, never achievements from a different group.
 INSERT INTO group_earned_titles (group_id, user_id, title_id, earned_at)
-SELECT DISTINCT e.group_id, e.user_id, e.title_id, COALESCE(t.earned_at, unixepoch() * 1000)
-FROM eligible_titles e LEFT JOIN earned_titles t ON t.user_id = e.user_id AND t.title_id = e.title_id;
+WITH days AS (
+  SELECT DISTINCT g.group_id, e.goal_id, e.user_id, e.date
+  FROM entries e JOIN goals g ON g.id = e.goal_id
+  JOIN achievement_groups ag ON ag.group_id = g.group_id
+  WHERE e.amount > 0 AND e.date BETWEEN g.start_date AND g.end_date
+), streaks AS (
+  SELECT group_id, user_id, COUNT(*) AS days FROM (
+    SELECT group_id, goal_id, user_id, julianday(date) - ROW_NUMBER() OVER (PARTITION BY goal_id, user_id ORDER BY date) AS island FROM days
+  ) GROUP BY group_id, goal_id, user_id, island
+), thresholds(title_id, days) AS (
+  VALUES ('initiate', 1), ('acolyte', 3), ('disciple', 7), ('veteran', 14), ('legend', 28)
+), eligible AS (
+  SELECT DISTINCT s.group_id, s.user_id, t.title_id FROM streaks s JOIN thresholds t ON s.days >= t.days
+)
+SELECT e.group_id, e.user_id, e.title_id, COALESCE(t.earned_at, unixepoch() * 1000)
+FROM eligible e LEFT JOIN earned_titles t ON t.user_id = e.user_id AND t.title_id = e.title_id;
 INSERT INTO group_title_preferences (group_id, user_id, title_id)
 SELECT e.group_id, p.user_id, p.title_id FROM title_preferences p
 JOIN group_earned_titles e ON e.user_id = p.user_id AND e.title_id = p.title_id;

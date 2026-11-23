@@ -304,10 +304,9 @@ api.post('/groups/:groupId/goals', async (c) => {
 type EntryRow = Omit<Entry, 'reactions' | 'comments'>
 
 async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Promise<GoalDetail> {
-  await memberGoal(db, goalId, uid)
-  // Also initializes crowns for goals that predate this feature.
-  await db.batch(achievementStatements(db, goalId))
-  const [access, components, entries, reactions, comments, crowns, records] = await db.batch([
+  const refresh = achievementStatements(db, goalId)
+  const [access, components, entries, reactions, comments, crowns, records] = (await db.batch([
+    ...refresh,
     db.prepare(MEMBER_GOAL_SQL).bind(uid, goalId),
     db.prepare('SELECT id, name, unit, target, weight FROM components WHERE goal_id = ? ORDER BY position').bind(goalId),
     db
@@ -330,7 +329,7 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
       .bind(goalId),
     db.prepare('SELECT category, user_id AS userId, total FROM goal_crowns WHERE goal_id = ? AND goal_id IN (SELECT id FROM goals WHERE group_id IN (SELECT group_id FROM achievement_groups))').bind(goalId),
     db.prepare('SELECT category, user_id AS userId, earned_at AS earnedAt FROM crown_records WHERE goal_id = ? AND goal_id IN (SELECT id FROM goals WHERE group_id IN (SELECT group_id FROM achievement_groups))').bind(goalId),
-  ])
+  ])).slice(refresh.length)
   const goal = (access.results[0] as GoalRow | undefined) ?? notFound()
   const commentsByEntry = new Map<string, Comment[]>()
   for (const { entryId, ...comment } of comments.results as (Comment & { entryId: string })[]) {

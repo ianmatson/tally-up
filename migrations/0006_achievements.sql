@@ -24,25 +24,19 @@ CREATE TABLE crown_records (
   PRIMARY KEY (goal_id, category, user_id)
 );
 
--- Distinct local activity dates, partitioned by goal, prevent duplicate logs
--- and overlapping goals from inflating a streak.
-CREATE VIEW eligible_titles AS
+INSERT OR IGNORE INTO earned_titles (user_id, title_id, earned_at)
 WITH days AS (
   SELECT DISTINCT e.goal_id, e.user_id, e.date
   FROM entries e JOIN goals g ON g.id = e.goal_id
   WHERE e.amount > 0 AND e.date BETWEEN g.start_date AND g.end_date
-), islands AS (
-  SELECT *, julianday(date) - ROW_NUMBER() OVER (PARTITION BY goal_id, user_id ORDER BY date) AS island
-  FROM days
 ), streaks AS (
-  SELECT goal_id, user_id, COUNT(*) AS days FROM islands GROUP BY goal_id, user_id, island
+  SELECT user_id, COUNT(*) AS days FROM (
+    SELECT goal_id, user_id, julianday(date) - ROW_NUMBER() OVER (PARTITION BY goal_id, user_id ORDER BY date) AS island FROM days
+  ) GROUP BY goal_id, user_id, island
 ), thresholds(title_id, days) AS (
   VALUES ('initiate', 1), ('acolyte', 3), ('disciple', 7), ('veteran', 14), ('legend', 28)
 )
-SELECT DISTINCT s.goal_id, s.user_id, t.title_id FROM streaks s JOIN thresholds t ON s.days >= t.days;
-
-INSERT OR IGNORE INTO earned_titles (user_id, title_id, earned_at)
-SELECT user_id, title_id, unixepoch() * 1000 FROM eligible_titles;
+SELECT DISTINCT s.user_id, t.title_id, unixepoch() * 1000 FROM streaks s JOIN thresholds t ON s.days >= t.days;
 
 -- Components are free-form today. Recognize common spelling and unit aliases;
 -- unrecognized activities still contribute to overall points and active days.

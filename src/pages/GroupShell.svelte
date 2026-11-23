@@ -2,6 +2,7 @@
   import { toast } from 'svelte-sonner'
   import { CROWNS, titleName, type TitleId } from '$shared/achievements'
   import { api } from '$lib/api'
+  import { formatAmount } from '$shared/units'
   import { queryClient } from '$lib/queries'
   import { createQuery } from '@tanstack/svelte-query'
   import { untrack } from 'svelte'
@@ -120,7 +121,7 @@
     if (crownBaseline) {
       for (const crown of crowns.filter((c) => !crownBaseline!.has(c.category))) {
         toast.success(`You claimed ${CROWNS[crown.category].name}!`, {
-          description: `${crown.total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${CROWNS[crown.category].unit}`,
+          description: formatAmount(crown.total, CROWNS[crown.category].unit),
         })
       }
     }
