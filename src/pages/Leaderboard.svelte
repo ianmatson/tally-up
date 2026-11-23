@@ -1,6 +1,6 @@
 <script lang="ts">
   import MemberHonors from '$lib/components/MemberHonors.svelte'
-  import { titleName } from '$shared/achievements'
+  import MemberHonorBadges from '$lib/components/MemberHonorBadges.svelte'
   import { formatAmount, unitFor, unitPlural, unitSingular } from '$shared/units'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
@@ -168,8 +168,8 @@
             <span class="h-[3px] w-3 shrink-0 rounded-full" style="background: {memberColor(member.id)}" aria-hidden="true"></span>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} tone={isMe ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <div class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}{#if group.achievementsEnabled && goal.crowns?.some((c) => c.userId === member.id)} <span aria-label="Holds crowns; expand for details">👑</span>{/if}</div>
-              {#if group.achievementsEnabled && titleName(member.selectedTitle)}<div class="mt-0.5 text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
+              <div class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}</div>
+              {#if group.achievementsEnabled}<MemberHonorBadges {member} crowns={goal.crowns} />{/if}
               <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
             </div>
             <div class="shrink-0 text-right">

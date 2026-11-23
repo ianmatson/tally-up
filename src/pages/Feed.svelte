@@ -46,6 +46,8 @@
         <li class="rise-in rounded-card bg-card p-4" style="animation-delay: {Math.min(i, 6) * 40}ms">
           <ActivityItem
             {entry}
+            achievementsEnabled={group.achievementsEnabled}
+            crowns={goal.crowns}
             component={componentsById.get(entry.componentId)}
             goalId={goal.id}
             userId={user.id}
