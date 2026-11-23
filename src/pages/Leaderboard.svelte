@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CrownBadge from '$lib/components/CrownBadge.svelte'
   import MemberHonors from '$lib/components/MemberHonors.svelte'
   import { titleName } from '$shared/achievements'
   import { formatAmount, unitFor, unitPlural, unitSingular } from '$shared/units'
@@ -154,13 +155,14 @@
         {@const member = row.item.member}
         {@const isMe = member.id === user.id}
         {@const isOpen = expanded === member.id}
+        {@const crownCount = group.achievementsEnabled ? (goal.crowns?.filter((c) => c.userId === member.id).length ?? 0) : 0}
         <li
           class={cn('overflow-hidden rounded-card bg-card', isMe && 'ring-2 ring-highlight')}
           onpointerenter={() => (hovered = member.id)}
           onpointerleave={() => (hovered = null)}
         >
           <button
-            class="flex w-full items-center gap-3 px-4 py-3.5 text-left disabled:cursor-default"
+            class="flex w-full items-center gap-3 px-4 py-3.5 text-left"
             aria-expanded={isOpen}
             onclick={() => (expanded = isOpen ? null : member.id)}
           >
@@ -168,7 +170,10 @@
             <span class="h-[3px] w-3 shrink-0 rounded-full" style="background: {memberColor(member.id)}" aria-hidden="true"></span>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} tone={isMe ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <div class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}{#if group.achievementsEnabled && goal.crowns?.some((c) => c.userId === member.id)} <span aria-label="Holds crowns; expand for details">👑</span>{/if}</div>
+              <div class="flex items-center gap-1.5">
+                <span class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}</span>
+                {#if crownCount}<CrownBadge count={crownCount} />{/if}
+              </div>
               {#if group.achievementsEnabled && titleName(member.selectedTitle)}<div class="mt-0.5 text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
               <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
             </div>
@@ -176,10 +181,9 @@
               <div class="tabular font-semibold">{selectedComponent ? formatNumber(row.value) : formatPoints(row.value)}</div>
               <div class="text-xs text-muted-foreground">{selectedComponent ? unitFor(selectedComponent.unit, row.value) : 'pts'} · {formatPercent(row.share)}</div>
             </div>
-              <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
+            <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
           </button>
           {#if isOpen}
-            {#if group.achievementsEnabled}<div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
             <dl class="mx-3 mb-3 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 rounded-[14px] bg-secondary/60 px-4 py-3 text-sm">
               {#each goal.components as component (component.id)}
                 {@const part = row.item.byComponent[component.id]}
@@ -191,6 +195,7 @@
                 <dd class="tabular text-right font-medium">{formatPoints(part.points)} pts</dd>
               {/each}
             </dl>
+            {#if group.achievementsEnabled}<div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
           {/if}
         </li>
       {/each}

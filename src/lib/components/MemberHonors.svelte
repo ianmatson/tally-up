@@ -1,78 +1,107 @@
 <script lang="ts">
   import { createMutation, useQueryClient } from '@tanstack/svelte-query'
   import { toast } from 'svelte-sonner'
+  import CheckIcon from '@lucide/svelte/icons/check'
+  import CrownIcon from '@lucide/svelte/icons/crown'
   import type { GoalDetail, GroupDetail, Member } from '$shared/api'
   import { CROWNS, TITLES, currentStreak, type TitleId } from '$shared/achievements'
   import { api } from '$lib/api'
+  import { cn } from '$lib/utils'
   import { formatAmount } from '$shared/units'
-  import { Button } from '$lib/components/ui/button'
+  import HatchTrack from './HatchTrack.svelte'
 
   let { member, group, goal, today, userId }: {
     member: Member; group: GroupDetail; goal: GoalDetail | null; today: string; userId: string
   } = $props()
   const client = useQueryClient()
+  const isMe = $derived(member.id === userId)
   const crowns = $derived(goal?.crowns?.filter((c) => c.userId === member.id) ?? [])
   const earned = $derived(new Set(group.earnedTitles?.filter((t) => t.userId === member.id).map((t) => t.titleId)))
   const streak = $derived(currentStreak(goal?.entries.filter((e) => e.userId === member.id && e.amount > 0 && e.date >= goal.startDate && e.date <= goal.endDate).map((e) => e.date) ?? [], today))
   const next = $derived(TITLES.find((t) => !earned.has(t.id)))
-  const records = $derived(goal?.crownRecords?.filter((r) => r.userId === member.id && !crowns.some((c) => c.category === r.category)) ?? [])
+  const formerCrowns = $derived(goal?.crownRecords?.filter((r) => r.userId === member.id && !crowns.some((c) => c.category === r.category)) ?? [])
   const equip = createMutation(() => ({
     mutationFn: (titleId: TitleId) => api(`/groups/${group.id}/title`, { method: 'PUT', body: { titleId } }),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ['group'] })
-      toast.success('Title equipped')
+      toast.success('Title updated')
     },
   }))
 </script>
 
 {#if group.achievementsEnabled}
-<div class="space-y-4 rounded-2xl bg-secondary/50 p-4">
-  <section aria-label="Crowns">
-    <h3 class="text-sm font-semibold">{goal?.archived || (goal && today > goal.endDate) ? 'Goal crowns' : 'Current crowns'}</h3>
-    {#if goal}<p class="mt-0.5 text-xs text-muted-foreground">{goal.name} · full goal totals</p>{/if}
-    {#if crowns.length}
-      <ul class="mt-2 flex flex-wrap gap-2">
-        {#each crowns as crown (crown.category)}
-          <li class="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-900 dark:text-amber-200">
-            <div class="text-sm font-semibold"><span aria-hidden="true">👑</span> {CROWNS[crown.category].name}</div>
-            <div class="text-xs">{CROWNS[crown.category].label} · {formatAmount(crown.total, CROWNS[crown.category].unit)}</div>
+  <div class="space-y-4 rounded-[14px] bg-secondary/60 px-4 py-3.5 text-sm">
+    {#if goal}
+      <section aria-label="Crowns">
+        <h3 class="text-xs font-medium text-muted-foreground">Crowns</h3>
+        {#if crowns.length}
+          <ul class="mt-2 flex flex-col gap-2.5">
+            {#each crowns as crown (crown.category)}
+              <li class="flex items-center gap-3">
+                <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-highlight text-highlight-foreground" aria-hidden="true">
+                  <CrownIcon class="size-3.5" />
+                </span>
+                <div class="min-w-0 flex-1 leading-tight">
+                  <div class="truncate font-medium">{CROWNS[crown.category].name}</div>
+                  <div class="truncate text-xs text-muted-foreground">{CROWNS[crown.category].label}</div>
+                </div>
+                <span class="tabular shrink-0 font-medium">{formatAmount(crown.total, CROWNS[crown.category].unit)}</span>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="mt-1 text-muted-foreground">None yet. Lead a category in this goal to take one.</p>
+        {/if}
+        {#if formerCrowns.length}
+          <p class="mt-2 text-xs text-muted-foreground">Previously held {formerCrowns.map((r) => CROWNS[r.category].name).join(', ')}</p>
+        {/if}
+      </section>
+    {/if}
+
+    <section aria-label="Titles">
+      <h3 class="text-xs font-medium text-muted-foreground">Titles{isMe && earned.size ? ' · tap one to show it' : ''}</h3>
+      <ul class="mt-2 flex flex-wrap gap-1.5">
+        {#each TITLES as title (title.id)}
+          {@const unlocked = earned.has(title.id)}
+          {@const shown = member.selectedTitle === title.id}
+          <li>
+            {#if isMe && unlocked}
+              <button
+                type="button"
+                class={cn(
+                  'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium transition-colors disabled:opacity-60',
+                  shown ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-accent',
+                )}
+                aria-pressed={shown}
+                disabled={equip.isPending}
+                onclick={() => equip.mutate(title.id)}
+              >
+                {#if shown}<CheckIcon class="size-3" aria-hidden="true" />{/if}{title.name}
+              </button>
+            {:else}
+              <span
+                class={cn(
+                  'inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium',
+                  unlocked ? (shown ? 'bg-primary text-primary-foreground' : 'bg-card') : 'border border-dashed border-input text-muted-foreground',
+                )}
+              >
+                {title.name}{#if !unlocked}<span class="sr-only"> (locked)</span>{/if}
+              </span>
+            {/if}
           </li>
         {/each}
       </ul>
-    {:else}
-      <p class="mt-2 text-xs text-muted-foreground">No crowns held yet. Take the lead to claim one.</p>
-    {/if}
-    {#if records.length}
-      <p class="mt-2 text-xs text-muted-foreground">Previously held: {records.map((r) => CROWNS[r.category].name).join(', ')}.</p>
-    {/if}
-  </section>
-
-  <section aria-label="Earned titles">
-    <h3 class="text-sm font-semibold">Earned titles</h3>
-    <p class="mt-0.5 text-xs text-muted-foreground">Yours to keep. {member.id === userId ? 'Choose one to display.' : ''}</p>
-    <div class="mt-2 flex flex-wrap gap-2">
-      {#each TITLES.filter((t) => earned.has(t.id)) as title (title.id)}
-        {#if member.id === userId}
-          <Button size="sm" variant={member.selectedTitle === title.id ? 'secondary' : 'outline'}
-            class="text-xs" disabled={equip.isPending} aria-pressed={member.selectedTitle === title.id}
-            onclick={() => equip.mutate(title.id)}>{title.name}{member.selectedTitle === title.id ? ' ✓' : ''}</Button>
-        {:else}
-          <span class="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">{title.name}</span>
-        {/if}
+      {#if next}
+        <div class="mt-3">
+          <div class="flex items-baseline justify-between gap-3 text-xs">
+            <span><span class="text-muted-foreground">Next</span> <span class="font-medium">{next.name}</span></span>
+            <span class="tabular text-muted-foreground">{Math.min(streak, next.days)} of {next.days} {next.days === 1 ? 'day' : 'days in a row'}</span>
+          </div>
+          <div class="mt-1.5"><HatchTrack value={Math.min(streak, next.days) / next.days} size="sm" label="Progress toward {next.name}" /></div>
+        </div>
       {:else}
-        <p class="text-xs text-muted-foreground">Make a first contribution to become an Initiate.</p>
-      {/each}
-    </div>
-    {#if next}
-      <div class="mt-3">
-        <div class="flex justify-between gap-2 text-xs"><span class="font-medium">Next: {next.name}</span><span class="text-muted-foreground">{Math.min(streak, next.days)} / {next.days} {next.days === 1 ? 'day' : 'consecutive days'}</span></div>
-        <progress class="mt-2 h-1.5 w-full accent-current" value={Math.min(streak, next.days)} max={next.days} aria-label="Progress toward {next.name}"></progress>
-        <p class="mt-1 text-xs text-muted-foreground">{next.days === 1 ? 'Log your first contribution.' : `Log activity ${next.days} days in a row within one goal.`} Days follow {group.timezone}.</p>
-      </div>
-    {:else}
-      <p class="mt-3 text-xs text-muted-foreground">Every title unlocked. Legendary.</p>
-    {/if}
-  </section>
-</div>
-
+        <p class="mt-2 text-xs text-muted-foreground">Every title unlocked.</p>
+      {/if}
+    </section>
+  </div>
 {/if}

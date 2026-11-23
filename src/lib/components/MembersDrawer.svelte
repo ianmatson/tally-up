@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
+  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
+  import CrownBadge from './CrownBadge.svelte'
   import MemberHonors from './MemberHonors.svelte'
+  import { cn } from '$lib/utils'
   import { titleName } from '$shared/achievements'
   import { formatMembers } from '$lib/format'
   import { Badge } from '$lib/components/ui/badge'
@@ -25,19 +28,34 @@
         <Drawer.Description>{group.name} · {formatMembers(group.members.length)}</Drawer.Description>
         <DrawerCloseButton />
       </Drawer.Header>
-      <ul class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-4">
+      <ul class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4">
         {#each group.members as member (member.id)}
-          <li class="py-2">
-          <button type="button" class="flex w-full items-center gap-3 rounded-xl py-2 text-left hover:bg-accent" aria-expanded={group.achievementsEnabled ? expanded === member.id : undefined} disabled={!group.achievementsEnabled} onclick={() => expanded = expanded === member.id ? null : member.id}>
-            <UserAvatar name={member.name} avatarUrl={member.avatarUrl} size="lg" tone={member.id === user.id ? 'highlight' : 'muted'} />
-            <div class="min-w-0 flex-1">
-              <div class="truncate font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}{#if group.achievementsEnabled && goal?.crowns?.some((c) => c.userId === member.id)} <span aria-label="Holds crowns">👑</span>{/if}</div>
-              {#if group.achievementsEnabled && titleName(member.selectedTitle)}<div class="text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
-              <div class="text-xs text-muted-foreground">Joined {joined.format(member.joinedAt)}</div>
-            </div>
-            {#if member.id === group.ownerId}<Badge variant="highlight">Admin</Badge>{/if}
-          </button>
-          {#if group.achievementsEnabled && expanded === member.id}<MemberHonors {member} {group} {goal} {today} userId={user.id} />{/if}
+          {@const crownCount = group.achievementsEnabled ? (goal?.crowns?.filter((c) => c.userId === member.id).length ?? 0) : 0}
+          {@const isOpen = group.achievementsEnabled && expanded === member.id}
+          <li>
+            <button
+              type="button"
+              class="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors enabled:hover:bg-accent"
+              aria-expanded={group.achievementsEnabled ? isOpen : undefined}
+              disabled={!group.achievementsEnabled}
+              onclick={() => (expanded = isOpen ? null : member.id)}
+            >
+              <UserAvatar name={member.name} avatarUrl={member.avatarUrl} size="lg" tone={member.id === user.id ? 'highlight' : 'muted'} />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="truncate font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}</span>
+                  {#if crownCount}<CrownBadge count={crownCount} />{/if}
+                </div>
+                <div class="truncate text-xs text-muted-foreground">
+                  {[group.achievementsEnabled && titleName(member.selectedTitle), `Joined ${joined.format(member.joinedAt)}`].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+              {#if member.id === group.ownerId}<Badge variant="highlight">Admin</Badge>{/if}
+              {#if group.achievementsEnabled}
+                <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
+              {/if}
+            </button>
+            {#if isOpen}<div class="mt-1 mb-2"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
           </li>
         {/each}
       </ul>
