@@ -1,3 +1,5 @@
+import { achievementStatements } from './achievements'
+import { TITLES, type EarnedTitle, type Crown, type CrownRecord } from '../shared/achievements'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
@@ -182,15 +184,20 @@ api.post('/groups', async (c) => {
 api.get('/groups/:groupId', async (c) => {
   const groupId = c.req.param('groupId')
   const db = c.env.DB
-  const [access, members, goals] = await db.batch([
+  const [access, members, goals, titles] = await db.batch([
     db.prepare(MEMBER_GROUP_SQL).bind(userId(c), groupId),
     db
       .prepare(
-        `SELECT u.id, u.name, u.avatar_url AS avatarUrl, m.joined_at AS joinedAt FROM users u JOIN memberships m ON m.user_id = u.id
+        `SELECT u.id, u.name, u.avatar_url AS avatarUrl, m.joined_at AS joinedAt,
+          COALESCE((SELECT title_id FROM title_preferences WHERE user_id = u.id),
+            (SELECT title_id FROM earned_titles WHERE user_id = u.id ORDER BY CASE title_id
+              WHEN 'legend' THEN 28 WHEN 'veteran' THEN 14 WHEN 'disciple' THEN 7 WHEN 'acolyte' THEN 3 ELSE 1 END DESC LIMIT 1)) AS selectedTitle FROM users u JOIN memberships m ON m.user_id = u.id
          WHERE m.group_id = ? ORDER BY m.joined_at`,
       )
       .bind(groupId),
     db.prepare('SELECT * FROM goals WHERE group_id = ? ORDER BY created_at DESC').bind(groupId),
+    db.prepare(`SELECT user_id AS userId, title_id AS titleId, earned_at AS earnedAt FROM earned_titles
+      WHERE user_id IN (SELECT user_id FROM memberships WHERE group_id = ?)`).bind(groupId),
   ])
   const group = (access.results[0] as GroupRow | undefined) ?? notFound()
   const isOwner = group.owner_id === userId(c)
@@ -202,9 +209,23 @@ api.get('/groups/:groupId', async (c) => {
     isOwner,
     inviteCode: isOwner ? group.invite_code : null,
     members: members.results as Member[],
+    earnedTitles: titles.results as EarnedTitle[],
     goals: (goals.results as GoalRow[]).map(toGoalSummary),
   }
   return c.json(detail)
+})
+
+api.put('/me/title', async (c) => {
+  const body = await c.req.json<unknown>()
+  if (!body || typeof body !== 'object' || !('titleId' in body)) badRequest('Choose a valid title')
+  const titleId = body.titleId
+  if (typeof titleId !== 'string' || !TITLES.some((t) => t.id === titleId)) badRequest('Choose a valid title')
+  const result = await c.env.DB.prepare(`INSERT INTO title_preferences (user_id, title_id)
+    SELECT user_id, title_id FROM earned_titles WHERE user_id = ? AND title_id = ?
+    ON CONFLICT (user_id) DO UPDATE SET title_id = excluded.title_id`)
+    .bind(userId(c), titleId).run()
+  if (!result.meta.changes) badRequest('You have not earned that title yet')
+  return c.body(null, 204)
 })
 
 api.patch('/groups/:groupId', async (c) => {
@@ -283,7 +304,10 @@ api.post('/groups/:groupId/goals', async (c) => {
 type EntryRow = Omit<Entry, 'reactions' | 'comments'>
 
 async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Promise<GoalDetail> {
-  const [access, components, entries, reactions, comments] = await db.batch([
+  await memberGoal(db, goalId, uid)
+  // Also initializes crowns for goals that predate this feature.
+  await db.batch(achievementStatements(db, goalId))
+  const [access, components, entries, reactions, comments, crowns, records] = await db.batch([
     db.prepare(MEMBER_GOAL_SQL).bind(uid, goalId),
     db.prepare('SELECT id, name, unit, target, weight FROM components WHERE goal_id = ? ORDER BY position').bind(goalId),
     db
@@ -304,6 +328,8 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
          JOIN entries e ON e.id = c.entry_id WHERE e.goal_id = ? ORDER BY c.created_at`,
       )
       .bind(goalId),
+    db.prepare('SELECT category, user_id AS userId, total FROM goal_crowns WHERE goal_id = ?').bind(goalId),
+    db.prepare('SELECT category, user_id AS userId, earned_at AS earnedAt FROM crown_records WHERE goal_id = ?').bind(goalId),
   ])
   const goal = (access.results[0] as GoalRow | undefined) ?? notFound()
   const commentsByEntry = new Map<string, Comment[]>()
@@ -320,6 +346,8 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
   }
   return {
     ...toGoalSummary(goal),
+    crowns: crowns.results as Crown[],
+    crownRecords: records.results as CrownRecord[],
     components: components.results as Component[],
     entries: (entries.results as EntryRow[]).map((entry) => ({
       ...entry,
@@ -363,12 +391,13 @@ api.post('/goals/:goalId/entries', async (c) => {
   const input = parseEntry(await c.req.json())
   const date = await loggableDate(c.env.DB, goal, input)
   const id = crypto.randomUUID()
-  await c.env.DB.prepare(
+  await c.env.DB.batch([c.env.DB.prepare(
     `INSERT INTO entries (id, goal_id, component_id, user_id, amount, date, occurred_at, note, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, goal.id, input.componentId, userId(c), input.amount, date, input.occurredAt, input.note, Date.now())
-    .run()
+    .bind(id, goal.id, input.componentId, userId(c), input.amount, date, input.occurredAt, input.note, Date.now()),
+    ...achievementStatements(c.env.DB, goal.id),
+  ])
   inBackground(c, notifyContribution(c, goal, id, input))
   return c.json({ id }, 201)
 })
@@ -377,15 +406,18 @@ api.put('/entries/:entryId', async (c) => {
   const goal = await editableEntry(c.env.DB, c.req.param('entryId'), userId(c))
   const input = parseEntry(await c.req.json())
   const date = await loggableDate(c.env.DB, goal, input)
-  await c.env.DB.prepare('UPDATE entries SET component_id = ?, amount = ?, date = ?, occurred_at = ?, note = ? WHERE id = ?')
-    .bind(input.componentId, input.amount, date, input.occurredAt, input.note, goal.entry_id)
-    .run()
+  await c.env.DB.batch([c.env.DB.prepare('UPDATE entries SET component_id = ?, amount = ?, date = ?, occurred_at = ?, note = ? WHERE id = ?')
+    .bind(input.componentId, input.amount, date, input.occurredAt, input.note, goal.entry_id),
+    ...achievementStatements(c.env.DB, goal.id),
+  ])
   return c.body(null, 204)
 })
 
 api.delete('/entries/:entryId', async (c) => {
   const goal = await editableEntry(c.env.DB, c.req.param('entryId'), userId(c))
-  await c.env.DB.prepare('DELETE FROM entries WHERE id = ?').bind(goal.entry_id).run()
+  await c.env.DB.batch([c.env.DB.prepare('DELETE FROM entries WHERE id = ?').bind(goal.entry_id),
+    ...achievementStatements(c.env.DB, goal.id),
+  ])
   return c.body(null, 204)
 })
 

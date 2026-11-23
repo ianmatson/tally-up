@@ -40,3 +40,13 @@ npm run deploy
 ## Scripts
 
 `npm run check` type-checks the client and Worker, `npm test` runs the scoring tests, and `npm run types` regenerates Worker binding types after changing `wrangler.jsonc`.
+
+## Titles and crowns
+
+Titles are permanent account unlocks earned within a single goal: Initiate (first contribution), Tally Acolyte (3 consecutive days), Tally Disciple (7), Tally Veteran (14), and Tally Legend (28). Activity dates use the group's timezone, and multiple entries on a day count once. Existing activity is backfilled by migration `0006_achievements.sql`. Users can equip any unlocked title in an expanded leaderboard row or the members drawer; until they choose, their highest unlocked title is displayed.
+
+Crowns use full-goal totals, independent of leaderboard filters: Juggernaut (pushups), Blade Runner (mileage), Titan (squats), Unbreakable (situps), GOAT (weighted points), and Final Boss (distinct active days). Ties retain the incumbent; initial ties use earliest contribution, then user ID. Previous holders are recorded, and archived goals retain their standings. Corrections to entries update standings without revoking permanent titles.
+
+Activity names are currently free-form. Rep crowns recognize pushups, squats, and situps (including spaces/hyphens) with repetition units. Mileage includes distance components in miles, kilometers, or meters, normalized to miles. Other activities still count toward points and active days.
+
+The production GitHub Actions workflow applies migrations before deploying the Worker. For a manual deployment, run `npm run db:migrate:remote` first. Local verification uses `npm run db:migrate:local`. Achievement SQL tests use Node's built-in SQLite support (Node 22.13+).

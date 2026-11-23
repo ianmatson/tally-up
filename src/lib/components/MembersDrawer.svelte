@@ -1,5 +1,7 @@
 <script lang="ts">
-  import type { GroupDetail, User } from '$shared/api'
+  import type { GoalDetail, GroupDetail, User } from '$shared/api'
+  import MemberHonors from './MemberHonors.svelte'
+  import { titleName } from '$shared/achievements'
   import { formatMembers } from '$lib/format'
   import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
@@ -7,7 +9,10 @@
   import DrawerCloseButton from './DrawerCloseButton.svelte'
   import UserAvatar from './UserAvatar.svelte'
 
-  let { open = $bindable(false), group, user }: { open: boolean; group: GroupDetail; user: User } = $props()
+  let { open = $bindable(false), group, user, goal, today }: { open: boolean; group: GroupDetail; user: User; goal: GoalDetail | null; today: string } = $props()
+
+  let expanded = $state<string | null>(null)
+  $effect(() => { if (open) expanded = user.id })
 
   const joined = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 </script>
@@ -22,13 +27,17 @@
       </Drawer.Header>
       <ul class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-4">
         {#each group.members as member (member.id)}
-          <li class="flex items-center gap-3 py-2">
+          <li class="py-2">
+          <button type="button" class="flex w-full items-center gap-3 rounded-xl py-2 text-left hover:bg-accent" aria-expanded={expanded === member.id} onclick={() => expanded = expanded === member.id ? null : member.id}>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} size="lg" tone={member.id === user.id ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <div class="truncate font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}</div>
+              <div class="truncate font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}{#if goal?.crowns?.some((c) => c.userId === member.id)} <span aria-label="Holds crowns">👑</span>{/if}</div>
+              {#if titleName(member.selectedTitle)}<div class="text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
               <div class="text-xs text-muted-foreground">Joined {joined.format(member.joinedAt)}</div>
             </div>
             {#if member.id === group.ownerId}<Badge variant="highlight">Admin</Badge>{/if}
+          </button>
+          {#if expanded === member.id}<MemberHonors {member} {group} {goal} {today} userId={user.id} />{/if}
           </li>
         {/each}
       </ul>

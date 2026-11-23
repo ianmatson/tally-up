@@ -35,12 +35,12 @@ export const meQuery = () =>
 export const groupsQuery = () => queryOptions({ queryKey: ['groups'], queryFn: () => api<GroupSummary[]>('/groups') })
 
 export const groupQuery = (groupId: string) =>
-  queryOptions({ queryKey: ['group', groupId], queryFn: () => api<GroupDetail>(`/groups/${groupId}`) })
+  queryOptions({ refetchInterval: 30_000, queryKey: ['group', groupId], queryFn: () => api<GroupDetail>(`/groups/${groupId}`) })
 
 export const allGoalsKey = ['goal'] as const
 
 export const goalQuery = (goalId: string) =>
-  queryOptions({ queryKey: ['goal', goalId], queryFn: () => api<GoalDetail>(`/goals/${goalId}`) })
+  queryOptions({ refetchInterval: 30_000, queryKey: ['goal', goalId], queryFn: () => api<GoalDetail>(`/goals/${goalId}`) })
 
 export const inviteQuery = (code: string) =>
   queryOptions({ queryKey: ['invite', code], queryFn: () => api<InvitePreview>(`/invites/${code}`) })

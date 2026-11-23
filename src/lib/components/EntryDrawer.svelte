@@ -55,6 +55,7 @@
 
   const onSuccess = (message: string) => () => {
     queryClient.invalidateQueries({ queryKey: goalQuery(goal.id).queryKey })
+    queryClient.invalidateQueries({ queryKey: ['group'] })
     toast.success(message)
     open = false
   }
