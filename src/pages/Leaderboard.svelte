@@ -1,4 +1,6 @@
 <script lang="ts">
+  import MemberHonors from '$lib/components/MemberHonors.svelte'
+  import { titleName } from '$shared/achievements'
   import { formatAmount, unitFor, unitPlural, unitSingular } from '$shared/units'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
@@ -151,7 +153,7 @@
       {#each visibleRows as row (row.item.member.id)}
         {@const member = row.item.member}
         {@const isMe = member.id === user.id}
-        {@const isOpen = expanded === member.id && !selectedComponent}
+        {@const isOpen = expanded === member.id}
         <li
           class={cn('overflow-hidden rounded-card bg-card', isMe && 'ring-2 ring-highlight')}
           onpointerenter={() => (hovered = member.id)}
@@ -159,26 +161,25 @@
         >
           <button
             class="flex w-full items-center gap-3 px-4 py-3.5 text-left disabled:cursor-default"
-            aria-expanded={selectedComponent ? undefined : isOpen}
-            disabled={!!selectedComponent}
+            aria-expanded={isOpen}
             onclick={() => (expanded = isOpen ? null : member.id)}
           >
             <span class="tabular w-5 shrink-0 text-center text-sm font-semibold text-muted-foreground">{row.rank}</span>
             <span class="h-[3px] w-3 shrink-0 rounded-full" style="background: {memberColor(member.id)}" aria-hidden="true"></span>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} tone={isMe ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <div class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}</div>
+              <div class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}{#if goal.crowns?.some((c) => c.userId === member.id)} <span aria-label="Holds crowns; expand for details">👑</span>{/if}</div>
+              {#if titleName(member.selectedTitle)}<div class="mt-0.5 text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
               <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
             </div>
             <div class="shrink-0 text-right">
               <div class="tabular font-semibold">{selectedComponent ? formatNumber(row.value) : formatPoints(row.value)}</div>
               <div class="text-xs text-muted-foreground">{selectedComponent ? unitFor(selectedComponent.unit, row.value) : 'pts'} · {formatPercent(row.share)}</div>
             </div>
-            {#if !selectedComponent}
               <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
-            {/if}
           </button>
           {#if isOpen}
+            <div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
             <dl class="mx-3 mb-3 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 rounded-[14px] bg-secondary/60 px-4 py-3 text-sm">
               {#each goal.components as component (component.id)}
                 {@const part = row.item.byComponent[component.id]}

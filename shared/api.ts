@@ -1,3 +1,5 @@
+import type { Crown, CrownRecord, EarnedTitle, TitleId } from './achievements'
+
 export type User = {
   id: string
   name: string
@@ -9,6 +11,7 @@ export type Member = {
   id: string
   name: string
   avatarUrl: string | null
+  selectedTitle?: TitleId | null
   joinedAt: number
 }
 
@@ -36,6 +39,7 @@ export type GroupDetail = {
   inviteCode: string | null
   members: Member[]
   goals: GoalSummary[]
+  earnedTitles?: EarnedTitle[]
 }
 
 export type Component = {
@@ -93,6 +97,8 @@ export type PushSubscriptionInput = {
 export type GoalDetail = GoalSummary & {
   components: Component[]
   entries: Entry[]
+  crowns?: Crown[]
+  crownRecords?: CrownRecord[]
 }
 
 export type ComponentInput = {

@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { toast } from 'svelte-sonner'
+  import { CROWNS, titleName, type TitleId } from '$shared/achievements'
+  import { api } from '$lib/api'
+  import { queryClient } from '$lib/queries'
   import { createQuery } from '@tanstack/svelte-query'
   import { untrack } from 'svelte'
   import type { Entry, User } from '$shared/api'
@@ -84,6 +88,45 @@
     })
   })
 
+  // Baseline the first response without celebrating historical/backfilled awards.
+  let titleBaseline: Set<string> | undefined
+  let crownBaseline: Set<string> | undefined
+  let awardsGroup = ''
+  let awardsGoal = ''
+  $effect(() => {
+    const data = group.data
+    if (!data) return
+    if (awardsGroup !== data.id) { awardsGroup = data.id; titleBaseline = undefined }
+    const earned = data.earnedTitles?.filter((t) => t.userId === user.id) ?? []
+    if (titleBaseline) {
+      for (const title of earned.filter((t) => !titleBaseline!.has(t.titleId))) {
+        const titleId: TitleId = title.titleId
+        toast.success(`You're now ${titleName(titleId)}.`, {
+          action: { label: 'Equip title', onClick: () => {
+            api('/me/title', { method: 'PUT', body: { titleId } })
+              .then(() => queryClient.invalidateQueries({ queryKey: ['group'] }))
+              .catch((error: Error) => toast.error(error.message))
+          } },
+        })
+      }
+    }
+    titleBaseline = new Set(earned.map((t) => t.titleId))
+  })
+  $effect(() => {
+    const data = currentGoal.data
+    if (!data) return
+    if (awardsGoal !== data.id) { awardsGoal = data.id; crownBaseline = undefined }
+    const crowns = data.crowns?.filter((c) => c.userId === user.id) ?? []
+    if (crownBaseline) {
+      for (const crown of crowns.filter((c) => !crownBaseline!.has(c.category))) {
+        toast.success(`You claimed ${CROWNS[crown.category].name}!`, {
+          description: `${crown.total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${CROWNS[crown.category].unit}`,
+        })
+      }
+    }
+    crownBaseline = new Set(crowns.map((c) => c.category))
+  })
+
   const navItems = $derived(
     GROUP_TABS.filter((t) => t.inNav).map((t) => ({
       id: t.id,
@@ -158,6 +201,6 @@
     />
   {/if}
   {#if group.data}
-    <MembersDrawer bind:open={membersOpen} group={group.data} {user} />
+    <MembersDrawer bind:open={membersOpen} group={group.data} goal={viewedGoal.data ?? null} {today} {user} />
   {/if}
 {/if}
