@@ -168,8 +168,8 @@
             <span class="h-[3px] w-3 shrink-0 rounded-full" style="background: {memberColor(member.id)}" aria-hidden="true"></span>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} tone={isMe ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <div class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}{#if goal.crowns?.some((c) => c.userId === member.id)} <span aria-label="Holds crowns; expand for details">👑</span>{/if}</div>
-              {#if titleName(member.selectedTitle)}<div class="mt-0.5 text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
+              <div class="truncate text-sm font-medium">{member.name}{isMe ? ' (you)' : ''}{#if group.achievementsEnabled && goal.crowns?.some((c) => c.userId === member.id)} <span aria-label="Holds crowns; expand for details">👑</span>{/if}</div>
+              {#if group.achievementsEnabled && titleName(member.selectedTitle)}<div class="mt-0.5 text-xs text-muted-foreground">{titleName(member.selectedTitle)}</div>{/if}
               <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
             </div>
             <div class="shrink-0 text-right">
@@ -179,7 +179,7 @@
               <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
           </button>
           {#if isOpen}
-            <div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
+            {#if group.achievementsEnabled}<div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
             <dl class="mx-3 mb-3 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 rounded-[14px] bg-secondary/60 px-4 py-3 text-sm">
               {#each goal.components as component (component.id)}
                 {@const part = row.item.byComponent[component.id]}

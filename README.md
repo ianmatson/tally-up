@@ -43,7 +43,9 @@ npm run deploy
 
 ## Titles and crowns
 
-Titles are permanent account unlocks earned within a single goal: Initiate (first contribution), Tally Acolyte (3 consecutive days), Tally Disciple (7), Tally Veteran (14), and Tally Legend (28). Activity dates use the group's timezone, and multiple entries on a day count once. Existing activity is backfilled by migration `0006_achievements.sql`. Users can equip any unlocked title in an expanded leaderboard row or the members drawer; until they choose, their highest unlocked title is displayed.
+Titles and crowns are exclusive to the existing **DG (Daddy Gainz)** group. Migration `0007_dg_achievements.sql` resolves that exact name once and stores its ID; later renames do not affect eligibility, and another group using that name does not gain access. Missing or duplicate matches leave the feature disabled. Other groups cannot earn, equip, or display these awards.
+
+Titles are permanent group-scoped unlocks earned within a single DG goal: Initiate (first contribution), Tally Acolyte (3 consecutive days), Tally Disciple (7), Tally Veteran (14), and Tally Legend (28). Activity dates use the group's timezone, and multiple entries on a day count once. The scope migration backfills only DG activity and removes awards attributed to other groups. Users can equip any unlocked title in an expanded leaderboard row or the members drawer; until they choose, their highest unlocked title is displayed.
 
 Crowns use full-goal totals, independent of leaderboard filters: Juggernaut (pushups), Blade Runner (mileage), Titan (squats), Unbreakable (situps), GOAT (weighted points), and Final Boss (distinct active days). Ties retain the incumbent; initial ties use earliest contribution, then user ID. Previous holders are recorded, and archived goals retain their standings. Corrections to entries update standings without revoking permanent titles.
 

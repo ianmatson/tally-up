@@ -39,6 +39,7 @@ export type GroupDetail = {
   inviteCode: string | null
   members: Member[]
   goals: GoalSummary[]
+  achievementsEnabled?: boolean
   earnedTitles?: EarnedTitle[]
 }
 

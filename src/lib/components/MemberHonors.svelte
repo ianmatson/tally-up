@@ -17,7 +17,7 @@
   const next = $derived(TITLES.find((t) => !earned.has(t.id)))
   const records = $derived(goal?.crownRecords?.filter((r) => r.userId === member.id && !crowns.some((c) => c.category === r.category)) ?? [])
   const equip = createMutation(() => ({
-    mutationFn: (titleId: TitleId) => api('/me/title', { method: 'PUT', body: { titleId } }),
+    mutationFn: (titleId: TitleId) => api(`/groups/${group.id}/title`, { method: 'PUT', body: { titleId } }),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ['group'] })
       toast.success('Title equipped')
@@ -25,6 +25,7 @@
   }))
 </script>
 
+{#if group.achievementsEnabled}
 <div class="space-y-4 rounded-2xl bg-secondary/50 p-4">
   <section aria-label="Crowns">
     <h3 class="text-sm font-semibold">{goal?.archived || (goal && today > goal.endDate) ? 'Goal crowns' : 'Current crowns'}</h3>
@@ -73,3 +74,5 @@
     {/if}
   </section>
 </div>
+
+{/if}
