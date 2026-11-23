@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CrownIcon from '@lucide/svelte/icons/crown'
   import type { Member } from '$shared/api'
   import { CROWNS, titleName, type Crown } from '$shared/achievements'
   import { Badge } from '$lib/components/ui/badge'
@@ -17,12 +18,12 @@
     {#each heldCrowns as crown (crown.category)}
       {@const detail = CROWNS[crown.category]}
       <Badge
-        variant="outline"
-        class="h-auto min-h-5 max-w-full border-amber-500/30 bg-amber-500/10 whitespace-normal text-[0.65rem] text-amber-900 dark:text-amber-200"
+        variant="highlight"
+        class="h-auto min-h-5 max-w-full whitespace-normal text-[0.65rem]"
         title="{detail.label} · full goal totals"
         aria-label="Crown: {detail.name}, {detail.label}"
       >
-        <span aria-hidden="true">👑</span> {detail.name}
+        <CrownIcon class="shrink-0" aria-hidden="true" /> {detail.name}
       </Badge>
     {/each}
   </div>

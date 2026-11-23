@@ -160,7 +160,7 @@
           onpointerleave={() => (hovered = null)}
         >
           <button
-            class="flex w-full items-center gap-3 px-4 py-3.5 text-left disabled:cursor-default"
+            class="flex w-full items-center gap-3 px-4 py-3.5 text-left"
             aria-expanded={isOpen}
             onclick={() => (expanded = isOpen ? null : member.id)}
           >
@@ -176,10 +176,9 @@
               <div class="tabular font-semibold">{selectedComponent ? formatNumber(row.value) : formatPoints(row.value)}</div>
               <div class="text-xs text-muted-foreground">{selectedComponent ? unitFor(selectedComponent.unit, row.value) : 'pts'} · {formatPercent(row.share)}</div>
             </div>
-              <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
+            <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
           </button>
           {#if isOpen}
-            {#if group.achievementsEnabled}<div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
             <dl class="mx-3 mb-3 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 rounded-[14px] bg-secondary/60 px-4 py-3 text-sm">
               {#each goal.components as component (component.id)}
                 {@const part = row.item.byComponent[component.id]}
@@ -191,6 +190,7 @@
                 <dd class="tabular text-right font-medium">{formatPoints(part.points)} pts</dd>
               {/each}
             </dl>
+            {#if group.achievementsEnabled}<div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
           {/if}
         </li>
       {/each}
