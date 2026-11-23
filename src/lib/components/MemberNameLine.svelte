@@ -4,16 +4,16 @@
   import { cn } from '$lib/utils'
   import CrownBadge from './CrownBadge.svelte'
 
-  let { member, label, crowns = [], showHonors, class: className }: {
+  let { member, label, crowns = [], showTitle, class: className }: {
     member: Member
     label: string
     crowns?: Crown[]
-    showHonors: boolean
+    showTitle: boolean
     class?: string
   } = $props()
 
-  const crownCount = $derived(showHonors ? crowns.filter((c) => c.userId === member.id).length : 0)
-  const title = $derived(showHonors ? titleName(member.selectedTitle) : undefined)
+  const crownCount = $derived(crowns.filter((c) => c.userId === member.id).length)
+  const title = $derived(showTitle ? titleName(member.selectedTitle) : undefined)
 </script>
 
 <div class="flex items-center gap-1.5">

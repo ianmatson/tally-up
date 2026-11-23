@@ -223,7 +223,7 @@
                 <span class="tabular w-4 text-center text-xs font-medium text-muted-foreground">{row.rank}</span>
                 <UserAvatar name={row.item.member.name} avatarUrl={row.item.member.avatarUrl} size="sm" tone={isMe ? 'highlight' : 'muted'} />
                 <div class="min-w-0 flex-1">
-                  <MemberNameLine member={row.item.member} label={isMe ? 'You' : row.item.member.name} crowns={goal.crowns} showHonors={!!group.achievementsEnabled} class="text-sm" />
+                  <MemberNameLine member={row.item.member} label={isMe ? 'You' : row.item.member.name} crowns={goal.crowns} showTitle={!!group.achievementsEnabled} class="text-sm" />
                 </div>
                 <span class="tabular shrink-0 text-sm font-semibold">{formatPoints(row.value)}</span>
               </li>
