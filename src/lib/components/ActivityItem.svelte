@@ -1,24 +1,20 @@
 <script lang="ts">
-  import type { Crown } from '$shared/achievements'
   import { formatAmount } from '$shared/units'
   import MessageCircleIcon from '@lucide/svelte/icons/message-circle'
   import type { Component, Entry, Member } from '$shared/api'
   import { formatDateTime, formatNumber, formatWhen, memberLabel } from '$lib/format'
   import ReactionBar from './ReactionBar.svelte'
   import UserAvatar from './UserAvatar.svelte'
-  import MemberHonorBadges from './MemberHonorBadges.svelte'
 
   const INLINE_COMMENTS = 2
 
-  let { entry, component, goalId, userId, membersById, now, achievementsEnabled = false, crowns = [], showComments = false, compact = false, onOpen }: {
+  let { entry, component, goalId, userId, membersById, now, showComments = false, compact = false, onOpen }: {
     entry: Entry
     component: Component | undefined
     goalId: string
     userId: string
     membersById: Map<string, Member>
     now: Date
-    achievementsEnabled?: boolean
-    crowns?: Crown[]
     showComments?: boolean
     compact?: boolean
     onOpen: (focusComposer: boolean) => void
@@ -56,10 +52,6 @@
         <span class="mt-1.5 block w-fit max-w-full rounded-[14px] rounded-tl-[4px] bg-secondary px-3 py-1.5 text-sm break-words">{entry.note}</span>
       {/if}
     </button>
-
-    {#if achievementsEnabled && member}
-      <MemberHonorBadges {member} {crowns} />
-    {/if}
 
     {#if !compact || entry.reactions.length > 0 || entry.comments.length > 0}
       <div class="mt-2 flex items-center justify-between gap-2">

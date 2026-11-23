@@ -8,7 +8,7 @@
   import { install } from '$lib/install.svelte'
   import CountUp from '$lib/components/CountUp.svelte'
   import HatchTrack from '$lib/components/HatchTrack.svelte'
-  import MemberHonorBadges from '$lib/components/MemberHonorBadges.svelte'
+  import MemberNameLine from '$lib/components/MemberNameLine.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
   import TallyGlyph from '$lib/components/TallyGlyph.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
@@ -223,10 +223,7 @@
                 <span class="tabular w-4 text-center text-xs font-medium text-muted-foreground">{row.rank}</span>
                 <UserAvatar name={row.item.member.name} avatarUrl={row.item.member.avatarUrl} size="sm" tone={isMe ? 'highlight' : 'muted'} />
                 <div class="min-w-0 flex-1">
-                  <div class="truncate text-sm font-medium">{isMe ? 'You' : row.item.member.name}</div>
-                  {#if group.achievementsEnabled}
-                    <MemberHonorBadges member={row.item.member} crowns={goal.crowns} />
-                  {/if}
+                  <MemberNameLine member={row.item.member} label={isMe ? 'You' : row.item.member.name} crowns={goal.crowns} showHonors={!!group.achievementsEnabled} class="text-sm" />
                 </div>
                 <span class="tabular shrink-0 text-sm font-semibold">{formatPoints(row.value)}</span>
               </li>
@@ -253,8 +250,6 @@
             <li class="py-3 first:pt-0 last:pb-0">
               <ActivityItem
                 {entry}
-                achievementsEnabled={group.achievementsEnabled}
-                crowns={goal.crowns}
                 component={componentsById.get(entry.componentId)}
                 goalId={goal.id}
                 userId={user.id}
