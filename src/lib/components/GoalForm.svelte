@@ -6,7 +6,7 @@
   import Trash2Icon from '@lucide/svelte/icons/trash-2'
   import { tick, untrack } from 'svelte'
   import { flip } from 'svelte/animate'
-  import type { GoalDetail, GoalInput } from '$shared/api'
+  import type { ComponentPeriod, GoalDetail, GoalInput } from '$shared/api'
   import { addDays, isIsoDate } from '$shared/dates'
   import { LIMITS } from '$shared/limits'
   import { Button } from '$lib/components/ui/button'
@@ -19,6 +19,11 @@
   const DEFAULT_GOAL_DAYS = 30
   const WHOLE_GOAL = 100
   const MIN_SHARE = 0.01
+  const PERIOD_OPTIONS: { value: ComponentPeriod; label: string }[] = [
+    { value: 'day', label: 'Daily' },
+    { value: 'week', label: 'Weekly' },
+    { value: 'month', label: 'Monthly' },
+  ]
 
   let { initial, today, submitLabel, pending, onSubmit }: {
     initial: GoalDetail | null
@@ -28,9 +33,9 @@
     onSubmit: (input: GoalInput) => void
   } = $props()
 
-  type Row = { key: string; id?: string; name: string; unit: string; target: string; weight: string; autoWeight: boolean }
+  type Row = { key: string; id?: string; name: string; unit: string; target: string; weight: string; period: ComponentPeriod; autoWeight: boolean }
 
-  const blankRow = (): Row => ({ key: crypto.randomUUID(), name: '', unit: 'reps', target: '', weight: '', autoWeight: true })
+  const blankRow = (): Row => ({ key: crypto.randomUUID(), name: '', unit: 'reps', target: '', weight: '', period: 'day', autoWeight: true })
 
   function initialRows(): Row[] {
     if (!initial) return [blankRow()]
@@ -42,6 +47,7 @@
       unit: c.unit,
       target: String(c.target),
       weight: String(c.weight),
+      period: c.period,
       autoWeight: evenlySplit,
     }))
   }
@@ -163,6 +169,7 @@
         unit: row.unit.trim(),
         target: Number(row.target),
         weight: Number(row.weight),
+        period: row.period,
       })),
       removedComponentIds: [...removedComponentIds],
     })
@@ -190,7 +197,7 @@
     <div class="flex items-end justify-between gap-2">
       <div>
         <h3 class="text-sm font-medium">Components</h3>
-        <p class="text-xs text-muted-foreground">Each component is worth a share of the goal, whatever its target. Drag to reorder.</p>
+        <p class="text-xs text-muted-foreground">Each component is worth a share of the goal. Its personal goal sets how often each member's target resets. Drag to reorder.</p>
       </div>
       <Button variant="outline" size="sm" onclick={splitEvenly}>
         <ScaleIcon />
@@ -236,7 +243,7 @@
               <Trash2Icon />
             </Button>
           </div>
-          <div class="grid grid-cols-3 gap-2">
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div class="flex flex-col gap-1">
               <Label class="text-xs text-muted-foreground" for="target-{row.key}">Target</Label>
               <Input
@@ -266,6 +273,18 @@
                 oninput={(e) => setWeight(row, e.currentTarget.value)}
                 required
               />
+            </div>
+            <div class="flex flex-col gap-1">
+              <Label class="text-xs text-muted-foreground" for="period-{row.key}">Personal goal</Label>
+              <select
+                id="period-{row.key}"
+                class="h-11 w-full min-w-0 rounded-xl border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
+                bind:value={row.period}
+              >
+                {#each PERIOD_OPTIONS as option (option.value)}
+                  <option value={option.value}>{option.label}</option>
+                {/each}
+              </select>
             </div>
           </div>
           {#if row.unit.trim()}

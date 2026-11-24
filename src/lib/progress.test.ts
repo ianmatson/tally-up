@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { Component, Entry, Member } from '$shared/api'
 import { creditEntries, cumulativeByMember, dailyGroupProgress, dateRange, goalProgress, memberScores, periodRange, rankBy } from './progress'
 
-const pushups: Component = { id: 'p', name: 'Pushups', unit: 'reps', target: 10000, weight: 50 }
-const miles: Component = { id: 'm', name: 'Run', unit: 'miles', target: 50, weight: 50 }
+const pushups: Component = { id: 'p', name: 'Pushups', unit: 'reps', target: 10000, weight: 50, period: 'day' }
+const miles: Component = { id: 'm', name: 'Run', unit: 'miles', target: 50, weight: 50, period: 'day' }
 const period = { startDate: '2026-12-01', endDate: '2026-12-31' }
 const goal = (components: Component[], entries: Entry[] = []) => ({ ...period, components, entries })
 
