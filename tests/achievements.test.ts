@@ -94,7 +94,7 @@ it('current streak uses calendar dates, preserves yesterday, and resets after a 
 
 function otherGroup(name = 'Another group') {
   db.prepare("INSERT INTO groups VALUES ('outside', ?, 'a', 'America/Chicago', 'outside-invite', 0)").run(name)
-  db.exec(`INSERT INTO memberships VALUES ('outside', 'a', 0);
+  db.exec(`INSERT INTO memberships (group_id, user_id, joined_at) VALUES ('outside', 'a', 0);
     INSERT INTO goals VALUES ('outside-goal', 'outside', 'Other goal', '2026-11-23', '2026-12-31', NULL, 0);
     INSERT INTO components (id, goal_id, name, unit, target, weight, position) VALUES ('outside-push', 'outside-goal', 'Pushups', 'reps', 100, 1, 0);`)
 }

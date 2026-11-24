@@ -1,4 +1,5 @@
 import { achievementStatements, GROUP_TITLES_SQL, EQUIP_TITLE_SQL } from './achievements'
+import { handOverSql, REMOVE_MEMBER_SQL } from './membership'
 import { TITLES, type EarnedTitle } from '../shared/achievements'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
@@ -34,23 +35,25 @@ import {
   parseGoal,
   parseName,
   parseNewGroup,
+  parseRole,
   parseSettingsChange,
   parseSubscription,
 } from './validate'
 
-type GroupRow = { id: string; name: string; owner_id: string; timezone: string; invite_code: string; achievements_enabled: number }
+type Role = 'member' | 'admin'
+type GroupRow = { id: string; name: string; owner_id: string; role: Role; timezone: string; invite_code: string; achievements_enabled: number }
 type GoalRow = { id: string; group_id: string; name: string; start_date: string; end_date: string; archived_at: number | null }
-type GoalAccessRow = GoalRow & { owner_id: string; timezone: string }
+type GoalAccessRow = GoalRow & { role: Role; timezone: string }
 
 const INVITE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'
 const INVITE_LENGTH = 10
 
-const MEMBER_GROUP_SQL = `SELECT g.id, g.name, g.owner_id, g.timezone, g.invite_code,
+const MEMBER_GROUP_SQL = `SELECT g.id, g.name, g.owner_id, m.role, g.timezone, g.invite_code,
   EXISTS (SELECT 1 FROM achievement_groups WHERE group_id = g.id) AS achievements_enabled FROM groups g
   JOIN memberships m ON m.group_id = g.id AND m.user_id = ?
   WHERE g.id = ?`
 
-const MEMBER_GOAL_SQL = `SELECT go.*, g.owner_id, g.timezone FROM goals go
+const MEMBER_GOAL_SQL = `SELECT go.*, m.role, g.timezone FROM goals go
   JOIN groups g ON g.id = go.group_id
   JOIN memberships m ON m.group_id = go.group_id AND m.user_id = ?
   WHERE go.id = ?`
@@ -60,7 +63,7 @@ function notFound(): never {
 }
 
 function forbidden(): never {
-  throw new HTTPException(403, { message: 'Only the group admin can do this' })
+  throw new HTTPException(403, { message: 'Only a group admin can do this' })
 }
 
 const userId = (c: Context<AppEnv>) => currentUser(c).id
@@ -83,9 +86,9 @@ async function memberGroup(db: D1Database, groupId: string, uid: string): Promis
   return (await db.prepare(MEMBER_GROUP_SQL).bind(uid, groupId).first<GroupRow>()) ?? notFound()
 }
 
-async function ownedGroup(db: D1Database, groupId: string, uid: string): Promise<GroupRow> {
+async function adminGroup(db: D1Database, groupId: string, uid: string): Promise<GroupRow> {
   const group = await memberGroup(db, groupId, uid)
-  if (group.owner_id !== uid) forbidden()
+  if (group.role !== 'admin') forbidden()
   return group
 }
 
@@ -99,7 +102,7 @@ function assertGoalOpen(goal: GoalRow) {
 
 async function openOwnedGoal(db: D1Database, goalId: string, uid: string): Promise<GoalAccessRow> {
   const goal = await memberGoal(db, goalId, uid)
-  if (goal.owner_id !== uid) forbidden()
+  if (goal.role !== 'admin') forbidden()
   assertGoalOpen(goal)
   return goal
 }
@@ -118,7 +121,7 @@ async function loggableDate(db: D1Database, goal: GoalAccessRow, input: EntryInp
 async function editableEntry(db: D1Database, entryId: string, uid: string): Promise<GoalAccessRow & { entry_id: string }> {
   const row = await db
     .prepare(
-      `SELECT go.*, g.owner_id, g.timezone, e.id AS entry_id, e.user_id AS entry_user_id FROM entries e
+      `SELECT go.*, m.role, g.timezone, e.id AS entry_id, e.user_id AS entry_user_id FROM entries e
        JOIN goals go ON go.id = e.goal_id
        JOIN groups g ON g.id = go.group_id
        JOIN memberships m ON m.group_id = g.id AND m.user_id = ?
@@ -127,7 +130,7 @@ async function editableEntry(db: D1Database, entryId: string, uid: string): Prom
     .bind(uid, entryId)
     .first<GoalAccessRow & { entry_id: string; entry_user_id: string }>()
   if (!row) notFound()
-  if (row.entry_user_id !== uid && row.owner_id !== uid) forbidden()
+  if (row.entry_user_id !== uid && row.role !== 'admin') forbidden()
   assertGoalOpen(row)
   return row
 }
@@ -154,14 +157,14 @@ api.route('/me', profile)
 
 api.get('/groups', async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT g.id, g.name, g.owner_id = ?1 AS isOwner,
+    `SELECT g.id, g.name, m.role = 'admin' AS isAdmin,
        (SELECT COUNT(*) FROM memberships WHERE group_id = g.id) AS memberCount
      FROM groups g JOIN memberships m ON m.group_id = g.id AND m.user_id = ?1
      ORDER BY m.joined_at`,
   )
     .bind(userId(c))
-    .all<Omit<GroupSummary, 'isOwner'> & { isOwner: number }>()
-  return c.json(results.map<GroupSummary>((r) => ({ ...r, isOwner: r.isOwner === 1 })))
+    .all<Omit<GroupSummary, 'isAdmin'> & { isAdmin: number }>()
+  return c.json(results.map<GroupSummary>((r) => ({ ...r, isAdmin: r.isAdmin === 1 })))
 })
 
 api.post('/groups', async (c) => {
@@ -177,7 +180,7 @@ api.post('/groups', async (c) => {
       newInviteCode(),
       now,
     ),
-    c.env.DB.prepare('INSERT INTO memberships (group_id, user_id, joined_at) VALUES (?, ?, ?)').bind(id, userId(c), now),
+    c.env.DB.prepare("INSERT INTO memberships (group_id, user_id, joined_at, role) VALUES (?, ?, ?, 'admin')").bind(id, userId(c), now),
   ])
   return c.json({ id }, 201)
 })
@@ -189,7 +192,7 @@ api.get('/groups/:groupId', async (c) => {
     db.prepare(MEMBER_GROUP_SQL).bind(userId(c), groupId),
     db
       .prepare(
-        `SELECT u.id, u.name, u.avatar_url AS avatarUrl, m.joined_at AS joinedAt,
+        `SELECT u.id, u.name, u.avatar_url AS avatarUrl, m.joined_at AS joinedAt, m.role = 'admin' AS isAdmin,
           COALESCE((SELECT title_id FROM group_title_preferences WHERE user_id = u.id AND group_id = m.group_id),
             (SELECT title_id FROM group_earned_titles WHERE user_id = u.id AND group_id = m.group_id ORDER BY CASE title_id
               WHEN 'legend' THEN 28 WHEN 'veteran' THEN 14 WHEN 'disciple' THEN 7 WHEN 'acolyte' THEN 3 ELSE 1 END DESC LIMIT 1)) AS selectedTitle FROM users u JOIN memberships m ON m.user_id = u.id
@@ -200,15 +203,18 @@ api.get('/groups/:groupId', async (c) => {
     db.prepare(GROUP_TITLES_SQL).bind(groupId),
   ])
   const group = (access.results[0] as GroupRow | undefined) ?? notFound()
-  const isOwner = group.owner_id === userId(c)
+  const isAdmin = group.role === 'admin'
   const detail: GroupDetail = {
     id: group.id,
     name: group.name,
     timezone: group.timezone,
-    ownerId: group.owner_id,
-    isOwner,
-    inviteCode: isOwner ? group.invite_code : null,
-    members: (members.results as Member[]).map((m) => ({ ...m, selectedTitle: group.achievements_enabled === 1 ? m.selectedTitle : null })),
+    isAdmin,
+    inviteCode: isAdmin ? group.invite_code : null,
+    members: (members.results as (Omit<Member, 'isAdmin'> & { isAdmin: number })[]).map((m) => ({
+      ...m,
+      isAdmin: m.isAdmin === 1,
+      selectedTitle: group.achievements_enabled === 1 ? m.selectedTitle : null,
+    })),
     achievementsEnabled: group.achievements_enabled === 1,
     earnedTitles: group.achievements_enabled === 1 ? titles.results as EarnedTitle[] : [],
     goals: (goals.results as GoalRow[]).map(toGoalSummary),
@@ -229,33 +235,50 @@ api.put('/groups/:groupId/title', async (c) => {
 })
 
 api.patch('/groups/:groupId', async (c) => {
-  const group = await ownedGroup(c.env.DB, c.req.param('groupId'), userId(c))
+  const group = await adminGroup(c.env.DB, c.req.param('groupId'), userId(c))
   const name = parseName(await c.req.json())
   await c.env.DB.prepare('UPDATE groups SET name = ? WHERE id = ?').bind(name, group.id).run()
   return c.body(null, 204)
 })
 
 api.post('/groups/:groupId/invite-code', async (c) => {
-  const group = await ownedGroup(c.env.DB, c.req.param('groupId'), userId(c))
+  const group = await adminGroup(c.env.DB, c.req.param('groupId'), userId(c))
   const inviteCode = newInviteCode()
   await c.env.DB.prepare('UPDATE groups SET invite_code = ? WHERE id = ?').bind(inviteCode, group.id).run()
   return c.json({ inviteCode })
 })
 
+const OWNER_TO_ACTOR_SQL = 'UPDATE groups SET owner_id = ?1 WHERE id = ?2 AND owner_id = ?3'
+
 api.delete('/groups/:groupId/members/:userId', async (c) => {
-  const group = await ownedGroup(c.env.DB, c.req.param('groupId'), userId(c))
+  const group = await adminGroup(c.env.DB, c.req.param('groupId'), userId(c))
   const memberId = c.req.param('userId')
-  if (memberId === group.owner_id) badRequest('The admin cannot be removed')
-  const groupEntries = 'SELECT e.id FROM entries e JOIN goals go ON go.id = e.goal_id WHERE go.group_id = ?'
+  if (memberId === userId(c)) badRequest('Leave the group from the members list instead')
   await c.env.DB.batch([
-    c.env.DB.prepare(`DELETE FROM comments WHERE user_id = ? AND entry_id IN (${groupEntries})`).bind(memberId, group.id),
-    c.env.DB.prepare(`DELETE FROM reactions WHERE user_id = ? AND entry_id IN (${groupEntries})`).bind(memberId, group.id),
-    c.env.DB.prepare('DELETE FROM entries WHERE user_id = ? AND goal_id IN (SELECT id FROM goals WHERE group_id = ?)').bind(
-      memberId,
-      group.id,
-    ),
-    c.env.DB.prepare('DELETE FROM memberships WHERE group_id = ? AND user_id = ?').bind(group.id, memberId),
+    c.env.DB.prepare(OWNER_TO_ACTOR_SQL).bind(userId(c), group.id, memberId),
+    ...REMOVE_MEMBER_SQL.map((sql) => c.env.DB.prepare(sql).bind(memberId, group.id)),
   ])
+  return c.body(null, 204)
+})
+
+api.put('/groups/:groupId/members/:userId/role', async (c) => {
+  const group = await adminGroup(c.env.DB, c.req.param('groupId'), userId(c))
+  const memberId = c.req.param('userId')
+  if (memberId === userId(c)) badRequest('You cannot change your own role')
+  const role = parseRole(await c.req.json())
+  const [updated] = await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE memberships SET role = ? WHERE group_id = ? AND user_id = ?').bind(role, group.id, memberId),
+    c.env.DB.prepare(OWNER_TO_ACTOR_SQL).bind(userId(c), group.id, memberId),
+  ])
+  if (!updated.meta.changes) notFound()
+  return c.body(null, 204)
+})
+
+api.delete('/groups/:groupId/membership', async (c) => {
+  const group = await memberGroup(c.env.DB, c.req.param('groupId'), userId(c))
+  await c.env.DB.batch(
+    [...handOverSql('group'), ...REMOVE_MEMBER_SQL].map((sql) => c.env.DB.prepare(sql).bind(userId(c), group.id)),
+  )
   return c.body(null, 204)
 })
 
@@ -282,7 +305,7 @@ api.post('/invites/:code', async (c) => {
 })
 
 api.post('/groups/:groupId/goals', async (c) => {
-  const group = await ownedGroup(c.env.DB, c.req.param('groupId'), userId(c))
+  const group = await adminGroup(c.env.DB, c.req.param('groupId'), userId(c))
   const input = parseGoal(await c.req.json())
   const goalId = crypto.randomUUID()
   const now = Date.now()
@@ -444,7 +467,6 @@ type SocialEntryRow = {
   owner_name: string
   amount: number
   group_id: string
-  group_owner_id: string
   component_name: string
   unit: string
 }
@@ -452,7 +474,7 @@ type SocialEntryRow = {
 async function memberEntry(db: D1Database, entryId: string, uid: string): Promise<SocialEntryRow> {
   const row = await db
     .prepare(
-      `SELECT e.id, e.user_id, u.name AS owner_name, e.amount, g.id AS group_id, g.owner_id AS group_owner_id,
+      `SELECT e.id, e.user_id, u.name AS owner_name, e.amount, g.id AS group_id,
          c.name AS component_name, c.unit
        FROM entries e
        JOIN users u ON u.id = e.user_id
@@ -505,7 +527,7 @@ async function notifyComment(c: Context<AppEnv>, entry: SocialEntryRow, body: st
 
 api.delete('/comments/:commentId', async (c) => {
   const row = await c.env.DB.prepare(
-    `SELECT cm.id, cm.user_id, g.owner_id FROM comments cm
+    `SELECT cm.id, cm.user_id, m.role FROM comments cm
      JOIN entries e ON e.id = cm.entry_id
      JOIN goals go ON go.id = e.goal_id
      JOIN groups g ON g.id = go.group_id
@@ -513,9 +535,9 @@ api.delete('/comments/:commentId', async (c) => {
      WHERE cm.id = ?`,
   )
     .bind(userId(c), c.req.param('commentId'))
-    .first<{ id: string; user_id: string; owner_id: string }>()
+    .first<{ id: string; user_id: string; role: Role }>()
   if (!row) notFound()
-  if (row.user_id !== userId(c) && row.owner_id !== userId(c)) forbidden()
+  if (row.user_id !== userId(c) && row.role !== 'admin') forbidden()
   await c.env.DB.prepare('DELETE FROM comments WHERE id = ?').bind(row.id).run()
   return c.body(null, 204)
 })

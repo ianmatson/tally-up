@@ -80,9 +80,9 @@ describe('dailyGroupProgress', () => {
 
 describe('memberScores and rankBy', () => {
   const members: Member[] = [
-    { id: 'a', name: 'Ana', avatarUrl: null, joinedAt: 0 },
-    { id: 'b', name: 'Ben', avatarUrl: null, joinedAt: 0 },
-    { id: 'c', name: 'Cy', avatarUrl: null, joinedAt: 0 },
+    { id: 'a', name: 'Ana', avatarUrl: null, joinedAt: 0, isAdmin: false },
+    { id: 'b', name: 'Ben', avatarUrl: null, joinedAt: 0, isAdmin: false },
+    { id: 'c', name: 'Cy', avatarUrl: null, joinedAt: 0, isAdmin: false },
   ]
 
   const score = (components: Component[], entries: Entry[]) =>
@@ -127,7 +127,7 @@ describe('chart series', () => {
   it('builds cumulative totals per member per day, folding out-of-range entries into the ends', () => {
     const days = dateRange('2026-12-01', '2026-12-03')
     const series = cumulativeByMember(
-      [{ id: 'a', name: 'Ana', avatarUrl: null, joinedAt: 0 }],
+      [{ id: 'a', name: 'Ana', avatarUrl: null, joinedAt: 0, isAdmin: false }],
       [entry('a', 'p', 10, '2026-12-01'), entry('a', 'p', 5, '2026-12-03'), entry('a', 'p', 99, '2026-11-30'), entry('a', 'p', 1, '2026-12-09')],
       days,
       (e) => e.amount,

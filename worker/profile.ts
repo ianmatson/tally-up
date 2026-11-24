@@ -4,6 +4,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { HTTPException } from 'hono/http-exception'
 import type { User } from '../shared/api'
 import { type AppEnv, clearSessionCookie, currentUser, UPLOADED_AVATAR_PREFIX } from './auth'
+import { handOverSql } from './membership'
 import { parseProfile } from './validate'
 
 const AVATAR_TYPE = 'image/jpeg'
@@ -22,10 +23,8 @@ profile.delete('/', async (c) => {
   const userId = currentUser(c).id
   const { userId: confirmedId } = await c.req.json<{ userId?: string }>().catch(() => ({ userId: undefined }))
   if (confirmedId !== userId) throw new HTTPException(409, { message: 'You are signed in to a different account here. Reload the page and try again.' })
-  const nextOwner = `(SELECT m.user_id FROM memberships m WHERE m.group_id = groups.id AND m.user_id != ?1 ORDER BY m.joined_at LIMIT 1)`
   await c.env.DB.batch([
-    c.env.DB.prepare(`UPDATE groups SET owner_id = ${nextOwner} WHERE owner_id = ?1 AND ${nextOwner} IS NOT NULL`).bind(userId),
-    c.env.DB.prepare('DELETE FROM groups WHERE owner_id = ?').bind(userId),
+    ...handOverSql('account').map((sql) => c.env.DB.prepare(sql).bind(userId)),
     c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(userId),
   ])
   clearSessionCookie(c)

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Member } from '$shared/api'
 import { formatCountdown, formatNumberDown, memberLabel } from './format'
 
-const member = (id: string, name: string): Member => ({ id, name, avatarUrl: null, joinedAt: 0 })
+const member = (id: string, name: string): Member => ({ id, name, avatarUrl: null, joinedAt: 0, isAdmin: false })
 
 describe('memberLabel', () => {
   it('uses first names, adds a last initial only when first names collide, and says You for the viewer', () => {

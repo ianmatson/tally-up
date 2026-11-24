@@ -3,9 +3,9 @@ import type { Entry, GoalDetail, GroupDetail } from '$shared/api'
 import { personalGoals } from './personal-goals'
 
 const group: GroupDetail = {
-  id: 'dg', name: 'Renamed DG', timezone: 'America/Chicago', ownerId: 'a', isOwner: true,
+  id: 'dg', name: 'Renamed DG', timezone: 'America/Chicago', isAdmin: true,
   inviteCode: null, goals: [], achievementsEnabled: true,
-  members: ['a', 'b'].map((id) => ({ id, name: id, avatarUrl: null, joinedAt: 0 })),
+  members: ['a', 'b'].map((id) => ({ id, name: id, avatarUrl: null, joinedAt: 0, isAdmin: false })),
 }
 const goal: GoalDetail = {
   id: 'goal', name: 'Challenge', startDate: '2026-11-01', endDate: '2026-11-28', archived: false,

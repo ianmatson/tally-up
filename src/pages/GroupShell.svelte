@@ -160,8 +160,8 @@
       <Leaderboard group={group.data} goal={viewedGoal.data ?? null} {today} {user} />
     {:else if tab === 'history'}
       <History group={group.data} />
-    {:else if tab === 'admin' && group.data.isOwner}
-      <Admin group={group.data} goal={currentGoal.data ?? null} {today} />
+    {:else if tab === 'admin' && group.data.isAdmin}
+      <Admin group={group.data} goal={currentGoal.data ?? null} {today} {user} />
     {:else}
       <NotFound />
     {/if}

@@ -36,6 +36,12 @@ function isoDate(value: unknown, field: string): string {
   return value
 }
 
+export function parseRole(value: unknown): 'member' | 'admin' {
+  const { role } = asBody(value)
+  if (role !== 'member' && role !== 'admin') badRequest('Choose admin or member')
+  return role
+}
+
 export function parseName(value: unknown): string {
   return text(asBody(value).name, 'Group name')
 }
