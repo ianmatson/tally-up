@@ -12,6 +12,16 @@
         var accent = localStorage.getItem('tally-up:accent')
         if (/^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--highlight', accent)
       } catch (e) {}
+      addEventListener('error', function (event) {
+        if (!(event.target instanceof HTMLScriptElement || event.target instanceof HTMLLinkElement)) return
+        try {
+          if (sessionStorage.getItem('tally-up:reloaded')) return
+          sessionStorage.setItem('tally-up:reloaded', '1')
+        } catch (e) {
+          return
+        }
+        location.reload()
+      }, true)
     </script>
     <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

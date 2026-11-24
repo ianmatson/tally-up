@@ -7,3 +7,7 @@ import { navigate } from '$lib/router.svelte'
 registerServiceWorker(navigate)
 
 mount(App, { target: document.getElementById('app')! })
+
+try {
+  sessionStorage.removeItem('tally-up:reloaded')
+} catch {}
