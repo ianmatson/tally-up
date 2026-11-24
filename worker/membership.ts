@@ -16,10 +16,18 @@ export function handOverSql(scope: 'group' | 'account'): string[] {
 }
 
 const GROUP_ENTRIES = 'SELECT e.id FROM entries e JOIN goals go ON go.id = e.goal_id WHERE go.group_id = ?2'
+const ACTOR_IS_ADMIN = "EXISTS (SELECT 1 FROM memberships a WHERE a.group_id = ?2 AND a.user_id = ?3 AND a.role = 'admin')"
 
-export const REMOVE_MEMBER_SQL = [
-  `DELETE FROM comments WHERE user_id = ?1 AND entry_id IN (${GROUP_ENTRIES})`,
-  `DELETE FROM reactions WHERE user_id = ?1 AND entry_id IN (${GROUP_ENTRIES})`,
-  'DELETE FROM entries WHERE user_id = ?1 AND goal_id IN (SELECT id FROM goals WHERE group_id = ?2)',
-  'DELETE FROM memberships WHERE user_id = ?1 AND group_id = ?2',
-]
+export function removeMemberSql(by: 'self' | 'admin'): string[] {
+  const guard = by === 'admin' ? ` AND ${ACTOR_IS_ADMIN}` : ''
+  return [
+    `DELETE FROM comments WHERE user_id = ?1 AND entry_id IN (${GROUP_ENTRIES})${guard}`,
+    `DELETE FROM reactions WHERE user_id = ?1 AND entry_id IN (${GROUP_ENTRIES})${guard}`,
+    `DELETE FROM entries WHERE user_id = ?1 AND goal_id IN (SELECT id FROM goals WHERE group_id = ?2)${guard}`,
+    `DELETE FROM memberships WHERE user_id = ?1 AND group_id = ?2${guard}`,
+  ]
+}
+
+export const OWNER_TO_ACTOR_SQL = `UPDATE groups SET owner_id = ?3 WHERE id = ?2 AND owner_id = ?1 AND ${ACTOR_IS_ADMIN}`
+
+export const SET_ROLE_SQL = `UPDATE memberships SET role = ?4 WHERE group_id = ?2 AND user_id = ?1 AND ${ACTOR_IS_ADMIN}`

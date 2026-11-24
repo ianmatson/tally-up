@@ -1,5 +1,5 @@
 import { achievementStatements, GROUP_TITLES_SQL, EQUIP_TITLE_SQL } from './achievements'
-import { handOverSql, REMOVE_MEMBER_SQL } from './membership'
+import { handOverSql, OWNER_TO_ACTOR_SQL, removeMemberSql, SET_ROLE_SQL } from './membership'
 import { TITLES, type EarnedTitle } from '../shared/achievements'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
@@ -248,16 +248,13 @@ api.post('/groups/:groupId/invite-code', async (c) => {
   return c.json({ inviteCode })
 })
 
-const OWNER_TO_ACTOR_SQL = 'UPDATE groups SET owner_id = ?1 WHERE id = ?2 AND owner_id = ?3'
-
 api.delete('/groups/:groupId/members/:userId', async (c) => {
   const group = await adminGroup(c.env.DB, c.req.param('groupId'), userId(c))
   const memberId = c.req.param('userId')
   if (memberId === userId(c)) badRequest('Leave the group from the members list instead')
-  await c.env.DB.batch([
-    c.env.DB.prepare(OWNER_TO_ACTOR_SQL).bind(userId(c), group.id, memberId),
-    ...REMOVE_MEMBER_SQL.map((sql) => c.env.DB.prepare(sql).bind(memberId, group.id)),
-  ])
+  await c.env.DB.batch(
+    [OWNER_TO_ACTOR_SQL, ...removeMemberSql('admin')].map((sql) => c.env.DB.prepare(sql).bind(memberId, group.id, userId(c))),
+  )
   return c.body(null, 204)
 })
 
@@ -267,8 +264,8 @@ api.put('/groups/:groupId/members/:userId/role', async (c) => {
   if (memberId === userId(c)) badRequest('You cannot change your own role')
   const role = parseRole(await c.req.json())
   const [updated] = await c.env.DB.batch([
-    c.env.DB.prepare('UPDATE memberships SET role = ? WHERE group_id = ? AND user_id = ?').bind(role, group.id, memberId),
-    c.env.DB.prepare(OWNER_TO_ACTOR_SQL).bind(userId(c), group.id, memberId),
+    c.env.DB.prepare(SET_ROLE_SQL).bind(memberId, group.id, userId(c), role),
+    c.env.DB.prepare(OWNER_TO_ACTOR_SQL).bind(memberId, group.id, userId(c)),
   ])
   if (!updated.meta.changes) notFound()
   return c.body(null, 204)
@@ -277,7 +274,7 @@ api.put('/groups/:groupId/members/:userId/role', async (c) => {
 api.delete('/groups/:groupId/membership', async (c) => {
   const group = await memberGroup(c.env.DB, c.req.param('groupId'), userId(c))
   await c.env.DB.batch(
-    [...handOverSql('group'), ...REMOVE_MEMBER_SQL].map((sql) => c.env.DB.prepare(sql).bind(userId(c), group.id)),
+    [...handOverSql('group'), ...removeMemberSql('self')].map((sql) => c.env.DB.prepare(sql).bind(userId(c), group.id)),
   )
   return c.body(null, 204)
 })

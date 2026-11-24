@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
 import { readFileSync, readdirSync } from 'node:fs'
-import { handOverSql, REMOVE_MEMBER_SQL } from '../worker/membership'
+import { handOverSql, OWNER_TO_ACTOR_SQL, removeMemberSql, SET_ROLE_SQL } from '../worker/membership'
 
 let db: DatabaseSync
 
@@ -14,7 +14,8 @@ const run = (statements: string[], ...params: string[]) => {
   for (const sql of statements) db.prepare(sql).run(...params)
   db.exec('COMMIT')
 }
-const leave = (user: string, group: string) => run([...handOverSql('group'), ...REMOVE_MEMBER_SQL], user, group)
+const leave = (user: string, group: string) => run([...handOverSql('group'), ...removeMemberSql('self')], user, group)
+const removeBy = (actor: string, member: string, group: string) => run([OWNER_TO_ACTOR_SQL, ...removeMemberSql('admin')], member, group, actor)
 const deleteAccount = (user: string) => run([...handOverSql('account'), 'DELETE FROM users WHERE id = ?1'], user)
 const roles = (group: string) =>
   Object.fromEntries(db.prepare('SELECT user_id, role FROM memberships WHERE group_id = ? ORDER BY joined_at').all(group).map((r) => [r.user_id, r.role]))
@@ -69,7 +70,8 @@ describe('group admins', () => {
   it('refuses any change that would leave a group without an admin', () => {
     addGroup('g', 'a', ['a', 'b'])
     expect(() => db.exec("UPDATE memberships SET role = 'member' WHERE user_id = 'a'")).toThrow('A group needs at least one admin')
-    expect(() => run(REMOVE_MEMBER_SQL, 'a', 'g')).toThrow('A group needs at least one admin')
+    expect(() => run(removeMemberSql('self'), 'a', 'g')).toThrow('A group needs at least one admin')
+    db.exec('ROLLBACK')
     expect(roles('g')).toEqual({ a: 'admin', b: 'member' })
   })
 
@@ -83,5 +85,15 @@ describe('group admins', () => {
     addGroup('g', 'a', ['a', 'b', 'c'])
     db.exec("DELETE FROM groups WHERE id = 'g'")
     expect(db.prepare('SELECT COUNT(*) AS n FROM memberships').get()?.n).toBe(0)
+  })
+
+  it('ignores removals and role changes from someone who is no longer an admin', () => {
+    addGroup('g', 'a', ['a', 'b', 'c'])
+    db.exec("UPDATE memberships SET role = 'admin' WHERE user_id = 'b'")
+    removeBy('a', 'b', 'g')
+    removeBy('b', 'a', 'g')
+    run([SET_ROLE_SQL], 'c', 'g', 'b', 'admin')
+    expect(roles('g')).toEqual({ a: 'admin', c: 'member' })
+    expect(owner('g')).toBe('a')
   })
 })
