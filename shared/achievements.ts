@@ -14,9 +14,9 @@ export const titleName = (id?: string | null) => TITLES.find((t) => t.id === id)
 
 export const CROWNS = {
   pushups: { name: 'Juggernaut', label: 'Pushup leader', unit: 'pushups' },
-  mileage: { name: 'Blade Runner', label: 'Mileage leader', unit: 'mi' },
-  squats: { name: 'Titan', label: 'Squat leader', unit: 'squats' },
   situps: { name: 'Unbreakable', label: 'Situp leader', unit: 'situps' },
+  squats: { name: 'Titan', label: 'Squat leader', unit: 'squats' },
+  mileage: { name: 'Blade Runner', label: 'Mileage leader', unit: 'mi' },
   points: { name: 'GOAT', label: 'Top contributor', unit: '% of goal' },
   days: { name: 'Relentless', label: 'Active days leader', unit: 'days' },
 } as const
