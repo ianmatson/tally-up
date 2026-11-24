@@ -235,6 +235,22 @@
       </div>
 
       <div class="flex flex-col gap-3 max-lg:contents lg:gap-4">
+        {#if personalTargets.length}
+          <section class="rise-in rounded-card bg-card p-4 [animation-delay:210ms] max-lg:order-3 sm:p-5" aria-labelledby="personal-goals-heading">
+            <h2 id="personal-goals-heading" class="font-semibold tracking-tight">Your goals</h2>
+            <p class="mt-1 text-xs text-muted-foreground">Based on the group’s current daily pace. No rollover.</p>
+            <ul class="mt-3 divide-y">
+              {#each personalTargets as target (target.label)}
+                <li class="flex items-baseline gap-2 py-3">
+                  <span class="tabular text-2xl font-semibold tracking-tight" class:text-highlight={target.remaining === 0}>{formatNumber(target.remaining)}</span>
+                  <span class="text-sm">{target.label} <span class="text-muted-foreground">left {target.period}</span></span>
+                </li>
+              {/each}
+            </ul>
+            <p class="mt-2 text-xs text-muted-foreground">Daily goals reset at midnight. Miles reset Monday. Uses the group’s timezone.</p>
+          </section>
+        {/if}
+
         <section class="rise-in rounded-card bg-card p-4 [animation-delay:150ms] max-lg:order-3 sm:p-5" aria-label="Recent activity">
           <div class="mb-3 flex items-center justify-between gap-3">
             <a href={feedHref} class="flex items-center gap-1 font-semibold tracking-tight">
@@ -269,22 +285,6 @@
             <Button href={feedHref} variant="secondary" class="mt-4 w-full">See the full feed</Button>
           {/if}
         </section>
-
-        {#if personalTargets.length}
-          <section class="rise-in rounded-card bg-card p-4 [animation-delay:210ms] max-lg:order-3 sm:p-5" aria-labelledby="personal-goals-heading">
-            <h2 id="personal-goals-heading" class="font-semibold tracking-tight">Your goals</h2>
-            <p class="mt-1 text-xs text-muted-foreground">Based on the group’s current daily pace. No rollover.</p>
-            <ul class="mt-3 divide-y">
-              {#each personalTargets as target (target.label)}
-                <li class="flex items-baseline gap-2 py-3">
-                  <span class="tabular text-2xl font-semibold tracking-tight" class:text-highlight={target.remaining === 0}>{formatNumber(target.remaining)}</span>
-                  <span class="text-sm">{target.label} <span class="text-muted-foreground">left {target.period}</span></span>
-                </li>
-              {/each}
-            </ul>
-            <p class="mt-2 text-xs text-muted-foreground">Daily goals reset at midnight. Miles reset Monday. Uses the group’s timezone.</p>
-          </section>
-        {/if}
       </div>
     </div>
   {/if}
