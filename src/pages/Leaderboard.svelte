@@ -5,10 +5,9 @@
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
   import ProgressChart from '$lib/components/ProgressChart.svelte'
-  import PillTabs from '$lib/components/PillTabs.svelte'
-  import SearchSelect from '$lib/components/SearchSelect.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
   import { Button } from '$lib/components/ui/button'
+  import * as Select from '$lib/components/ui/select'
   import { formatNumber, formatPercent, formatShare, memberLabel } from '$lib/format'
   import { daysBetween } from '$shared/dates'
   import {
@@ -16,10 +15,7 @@
     creditEntries,
     cumulativeByMember,
     dateRange,
-    entriesInPeriod,
     memberScores,
-    type Period,
-    PERIOD_OPTIONS,
     periodRange,
     rankBy,
   } from '$lib/progress'
@@ -30,12 +26,10 @@
   const OVERALL = 'overall'
   const PALETTE_SIZE = 8
   const VISIBLE_ROWS = 10
-  const MAX_TABS = 10
   const MIN_SHARE_SCALE = 0.01
 
   let { group, goal, today, user }: { group: GroupDetail; goal: GoalDetail | null; today: string; user: User } = $props()
 
-  let period = $state<Period>('all')
   let view = $state(OVERALL)
   let expanded = $state<string | null>(null)
   let hovered = $state<string | null>(null)
@@ -44,8 +38,7 @@
 
   const credited = $derived(goal ? creditEntries(goal) : [])
   const crowns = $derived(goal ? crownTallies(goal, today) : new Map())
-  const entries = $derived(goal ? entriesInPeriod({ ...goal, entries: credited }, today, period) : [])
-  const scores = $derived(goal ? memberScores(group.members, goal.components, entries) : [])
+  const scores = $derived(goal ? memberScores(group.members, goal.components, credited) : [])
   const selectedComponent = $derived(goal?.components.find((c) => c.id === view))
   const rows = $derived(
     rankBy(scores, (s) =>
@@ -76,14 +69,14 @@
 
   const days = $derived.by(() => {
     if (!goal) return []
-    const { start, end } = periodRange(goal, today, period)
+    const { start, end } = periodRange(goal, today, 'all')
     return dateRange(start, end)
   })
   const shares = $derived(componentShares(goal?.components ?? []))
   const chartSeries = $derived.by(() => {
-    const valueOf = (e: (typeof entries)[number]) =>
+    const valueOf = (e: (typeof credited)[number]) =>
       selectedComponent ? (e.componentId === selectedComponent.id ? e.amount : 0) : e.contribution
-    const totals = cumulativeByMember(group.members, entries, days, valueOf)
+    const totals = cumulativeByMember(group.members, credited, days, valueOf)
     return group.members.map((m) => ({
       id: m.id,
       name: memberLabel(membersById, m.id, user.id),
@@ -92,7 +85,7 @@
     }))
   })
   const evenShare = $derived.by(() => {
-    if (!goal || period !== 'all' || days.length === 0) return null
+    if (!goal || days.length === 0) return null
     const groupTarget = selectedComponent ? selectedComponent.target : 1
     const share = groupTarget / group.members.length
     const goalDays = daysBetween(goal.startDate, goal.endDate) + 1
@@ -114,7 +107,16 @@
     <div class="flex items-center justify-between gap-3">
       <h1 class="page-title">Leaderboard</h1>
       {#if goal}
-        <PillTabs bind:value={period} label="Period" options={PERIOD_OPTIONS} />
+        <Select.Root type="single" bind:value={view}>
+          <Select.Trigger aria-label="Ranking" class="h-9 max-w-44 min-w-0 rounded-full border-0 bg-secondary px-3.5 font-medium shadow-none dark:bg-secondary">
+            <span class="truncate">{viewOptions.find((o) => o.value === view)?.label}</span>
+          </Select.Trigger>
+          <Select.Content align="end" class="rounded-2xl">
+            {#each viewOptions as option (option.value)}
+              <Select.Item value={option.value} label={option.label} class="rounded-xl">{option.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
       {/if}
     </div>
     {#if goal}<p class="mt-0.5 truncate text-sm text-muted-foreground">{goal.name}{goal.archived ? ' · past goal' : ''}</p>{/if}
@@ -123,20 +125,12 @@
   {#if !goal}
     <p class="rounded-card bg-card px-5 py-8 text-center text-sm text-muted-foreground">The leaderboard starts when the group has a goal.</p>
   {:else}
-    {#if goal.components.length > MAX_TABS}
-      <SearchSelect bind:value={view} label="Ranking" placeholder="Search activities" options={viewOptions} class="mb-3 bg-card sm:w-72" />
-    {:else}
-      <div class="-mx-4 mb-3 overflow-x-auto px-4 pr-10 [mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)] sm:mx-0 sm:px-0 sm:pr-10">
-        <PillTabs bind:value={view} label="Ranking" size="md" options={viewOptions} />
-      </div>
-    {/if}
-
     {#if days.length > 0}
       <section class="rise-in mb-3 rounded-card bg-card p-4 sm:p-5" aria-labelledby="chart-heading">
         <div class="mb-3 flex items-baseline justify-between gap-3">
           <h2 id="chart-heading" class="font-semibold tracking-tight">Progress over time</h2>
           <span class="text-xs text-muted-foreground">
-            {selectedComponent ? `${selectedComponent.name} (${unitPlural(selectedComponent.unit)})` : 'Share of goal'}{evenShare ? '' : ' · last 7 days'}
+            {selectedComponent ? `${selectedComponent.name} (${unitPlural(selectedComponent.unit)})` : 'Share of goal'}
           </span>
         </div>
         <ProgressChart
