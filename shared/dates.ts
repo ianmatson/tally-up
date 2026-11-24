@@ -22,7 +22,15 @@ export function wallClockMs(timeZone: string, now = new Date()): number {
   return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
 }
 
-export const msUntil = (date: string, timeZone: string, now = new Date()) => dateMs(date) - wallClockMs(timeZone, now)
+const offsetMs = (timeZone: string, instant: number) => wallClockMs(timeZone, new Date(instant)) - instant
+
+export function zonedMidnightMs(date: string, timeZone: string): number {
+  const local = dateMs(date)
+  const guess = local - offsetMs(timeZone, local)
+  return local - offsetMs(timeZone, guess)
+}
+
+export const msUntil = (date: string, timeZone: string, now = new Date()) => zonedMidnightMs(date, timeZone) - now.getTime()
 
 export function dateMs(date: string): number {
   const [y, m, d] = date.split('-').map(Number)
