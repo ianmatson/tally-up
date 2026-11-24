@@ -1,7 +1,7 @@
 <script lang="ts">
   import MemberHonors from '$lib/components/MemberHonors.svelte'
   import MemberNameLine from '$lib/components/MemberNameLine.svelte'
-  import { formatAmount, unitFor, unitPlural } from '$shared/units'
+  import { formatAmount, unitPlural } from '$shared/units'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
   import HatchTrack from '$lib/components/HatchTrack.svelte'
@@ -45,7 +45,9 @@
   const scores = $derived(goal ? memberScores(group.members, goal.components, entries) : [])
   const selectedComponent = $derived(goal?.components.find((c) => c.id === view))
   const rows = $derived(
-    rankBy(scores, (s) => (selectedComponent ? s.byComponent[selectedComponent.id].amount : s.contribution)),
+    rankBy(scores, (s) =>
+      selectedComponent ? s.byComponent[selectedComponent.id].contribution / shares.get(selectedComponent.id)! : s.contribution,
+    ),
   )
   const componentTotals = $derived(
     Object.fromEntries(
@@ -175,12 +177,8 @@
               <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
             </div>
             <div class="shrink-0 text-right">
-              <div class="tabular font-semibold">{selectedComponent ? formatNumber(row.value) : formatShare(row.value)}</div>
-              {#if selectedComponent}
-                <div class="text-xs text-muted-foreground">{unitFor(selectedComponent.unit, row.value)} · {formatPercent(row.share)}</div>
-              {:else}
-                <span class="sr-only">of the goal, {formatPercent(row.share)} of the group total</span>
-              {/if}
+              <div class="tabular font-semibold">{formatShare(row.value)}</div>
+              <span class="sr-only">of the {selectedComponent ? `${selectedComponent.name} target` : 'goal'}</span>
             </div>
             <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
           </button>
