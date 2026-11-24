@@ -2,13 +2,13 @@
   import { formatAmount } from '$shared/units'
   import MessageCircleIcon from '@lucide/svelte/icons/message-circle'
   import type { Component, Entry, Member } from '$shared/api'
-  import { formatDateTime, formatNumber, formatWhen, memberLabel } from '$lib/format'
+  import { formatDateTime, formatNumber, formatTime, formatWhen, memberLabel } from '$lib/format'
   import ReactionBar from './ReactionBar.svelte'
   import UserAvatar from './UserAvatar.svelte'
 
   const INLINE_COMMENTS = 2
 
-  let { entry, component, goalId, userId, membersById, now, showComments = false, compact = false, onOpen }: {
+  let { entry, component, goalId, userId, membersById, now, showComments = false, compact = false, timeOfDay = false, onOpen }: {
     entry: Entry
     component: Component | undefined
     goalId: string
@@ -17,6 +17,7 @@
     now: Date
     showComments?: boolean
     compact?: boolean
+    timeOfDay?: boolean
     onOpen: (focusComposer: boolean) => void
   } = $props()
 
@@ -45,7 +46,7 @@
           <span class="text-muted-foreground">{component?.name.toLowerCase()}</span>
         </span>
         <time class="shrink-0 text-xs text-muted-foreground" datetime={new Date(entry.occurredAt).toISOString()}>
-          {formatWhen(entry.occurredAt, now)}
+          {timeOfDay ? formatTime(entry.occurredAt) : formatWhen(entry.occurredAt, now)}
         </time>
       </span>
       {#if entry.note}

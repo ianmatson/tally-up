@@ -41,7 +41,7 @@
 
 <section class="rise-in rounded-card bg-card p-4 [animation-delay:120ms] sm:p-5" aria-labelledby="crown-race-heading">
   <h2 id="crown-race-heading" class="font-semibold tracking-tight">Today's crowns</h2>
-  <p class="mt-1 text-xs text-muted-foreground">Lead a category at midnight to take its crown. Ties earn none.</p>
+  <p class="mt-1 text-xs text-muted-foreground">Lead at midnight to win. Ties win nothing.</p>
   <ul class="mt-2 divide-y">
     {#each rows as row (row.id)}
       {@const mine = row.standing.userIds.length === 1 && row.standing.userIds[0] === userId}

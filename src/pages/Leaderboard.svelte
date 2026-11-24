@@ -4,7 +4,6 @@
   import { formatAmount, unitPlural } from '$shared/units'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
-  import HatchTrack from '$lib/components/HatchTrack.svelte'
   import ProgressChart from '$lib/components/ProgressChart.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
   import SearchSelect from '$lib/components/SearchSelect.svelte'
@@ -41,6 +40,7 @@
   let expanded = $state<string | null>(null)
   let hovered = $state<string | null>(null)
   let showAllRows = $state(false)
+  let showScoring = $state(false)
 
   const credited = $derived(goal ? creditEntries(goal) : [])
   const crowns = $derived(goal ? crownTallies(goal, today) : new Map())
@@ -152,7 +152,7 @@
         {#if evenShare}
           <p class="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <span class="w-4 border-t-[1.5px] border-dashed border-muted-foreground"></span>
-            Even share: where each person would be if everyone did an equal part
+            Even share if everyone does an equal part
           </p>
         {/if}
       </section>
@@ -177,8 +177,8 @@
             <span class="h-[3px] w-3 shrink-0 rounded-full" style="background: {memberColor(member.id)}" aria-hidden="true"></span>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} tone={isMe ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <MemberNameLine {member} label="{member.name}{isMe ? ' (you)' : ''}" crowns={crowns.get(member.id)?.total} showTitle={!!group.achievementsEnabled} class="text-sm" />
-              <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
+              <MemberNameLine {member} label={member.name} crowns={crowns.get(member.id)?.total} showTitle={!!group.achievementsEnabled} class="text-sm" />
+              {#if isMe}<span class="sr-only">(you)</span>{/if}
             </div>
             <div class="shrink-0 text-right">
               <div class="tabular font-semibold">{formatShare(row.value)}</div>
@@ -209,23 +209,35 @@
       <Button variant="secondary" class="mt-3 w-full" onclick={() => (showAllRows = true)}>Show all {rows.length} members</Button>
     {/if}
 
-    <section class="mt-6 rounded-card bg-card p-5">
-      <h2 class="font-semibold tracking-tight">How scoring works</h2>
-      <p class="mt-1 text-sm text-muted-foreground">
-        Each activity is a fixed share of the goal. Your score is the part of the goal your logs complete. Once an activity
-        reaches its target, later logs for it do not count. An activity tab shows your share of that activity's target. The bar shows your share of the group's total.
-      </p>
-      <dl class="mt-4 flex flex-col divide-y text-sm">
-        {#each goal.components as component (component.id)}
-          <div class="flex items-baseline justify-between gap-3 py-2.5">
-            <dt class="font-medium">{component.name}</dt>
-            <dd class="tabular text-right">
-              {formatShare(shares.get(component.id) ?? 0)} of goal
-              <span class="block text-xs text-muted-foreground">Target {formatAmount(component.target, component.unit)}</span>
-            </dd>
-          </div>
-        {/each}
-      </dl>
+    <section class="mt-6 rounded-card bg-card px-5 py-3">
+      <button
+        type="button"
+        class="-mx-2 flex w-[calc(100%+1rem)] items-center justify-between rounded-xl px-2 py-2 text-left font-semibold tracking-tight transition-colors hover:bg-accent"
+        aria-expanded={showScoring}
+        onclick={() => (showScoring = !showScoring)}
+      >
+        How scoring works
+        <ChevronDownIcon class={cn('size-4 text-muted-foreground transition-transform duration-200', showScoring && 'rotate-180')} />
+      </button>
+      {#if showScoring}
+        <div transition:expand>
+          <p class="pt-1 text-sm text-muted-foreground">
+            Each activity is a fixed share of the goal, and logs past an activity's target do not count. Overall shows your share of
+            the goal. An activity tab shows your share of that activity's target.
+          </p>
+          <dl class="mt-3 flex flex-col divide-y pb-2 text-sm">
+            {#each goal.components as component (component.id)}
+              <div class="flex items-baseline justify-between gap-3 py-2.5">
+                <dt class="font-medium">{component.name}</dt>
+                <dd class="tabular text-right">
+                  {formatShare(shares.get(component.id) ?? 0)} of goal
+                  <span class="block text-xs text-muted-foreground">Target {formatAmount(component.target, component.unit)}</span>
+                </dd>
+              </div>
+            {/each}
+          </dl>
+        </div>
+      {/if}
     </section>
   {/if}
 </div>

@@ -3,6 +3,8 @@
   import ActivityItem from '$lib/components/ActivityItem.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
   import { Button } from '$lib/components/ui/button'
+  import { formatDayLabel } from '$lib/format'
+  import { todayIn } from '$shared/dates'
 
   const PAGE_SIZE = 20
 
@@ -20,7 +22,17 @@
 
   const componentsById = $derived(new Map(goal?.components.map((c) => [c.id, c]) ?? []))
   const membersById = $derived(new Map(group.members.map((m) => [m.id, m])))
-  const entries = $derived(goal?.entries.filter((e) => scope === 'everyone' || e.userId === user.id) ?? [])
+  const entries = $derived(
+    (goal?.entries.filter((e) => scope === 'everyone' || e.userId === user.id) ?? []).toSorted(
+      (a, b) => b.date.localeCompare(a.date) || b.occurredAt - a.occurredAt,
+    ),
+  )
+  const today = $derived(todayIn(group.timezone, now))
+  const days = $derived.by(() => {
+    const byDay = new Map<string, Entry[]>()
+    for (const entry of entries.slice(0, limit)) byDay.set(entry.date, [...(byDay.get(entry.date) ?? []), entry])
+    return [...byDay]
+  })
 </script>
 
 <div class="mx-auto flex max-w-xl flex-col gap-3">
@@ -41,22 +53,29 @@
       {canLog && !goal.archived ? 'Nothing logged yet. Tap + to add the first tally.' : 'Nothing was logged.'}
     </p>
   {:else}
-    <ul class="flex flex-col gap-3">
-      {#each entries.slice(0, limit) as entry, i (entry.id)}
-        <li class="rise-in rounded-card bg-card p-4" style="animation-delay: {Math.min(i, 6) * 40}ms">
-          <ActivityItem
-            {entry}
-            component={componentsById.get(entry.componentId)}
-            goalId={goal.id}
-            userId={user.id}
-            {membersById}
-            {now}
-            showComments
-            onOpen={(focus) => onOpen(entry, focus)}
-          />
-        </li>
-      {/each}
-    </ul>
+    {#each days as [date, dayEntries], i (date)}
+      <section class="rise-in" style="animation-delay: {Math.min(i, 4) * 40}ms" aria-label={formatDayLabel(date, today)}>
+        <h2 class="mb-2 px-1 text-xs font-medium text-muted-foreground">{formatDayLabel(date, today)}</h2>
+        <ul class="flex flex-col divide-y rounded-card bg-card px-4">
+          {#each dayEntries as entry (entry.id)}
+            <li class="py-3.5">
+              <ActivityItem
+                {entry}
+                component={componentsById.get(entry.componentId)}
+                goalId={goal.id}
+                userId={user.id}
+                {membersById}
+                {now}
+                showComments
+                compact
+                timeOfDay
+                onOpen={(focus) => onOpen(entry, focus)}
+              />
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/each}
     {#if entries.length > limit}
       <Button variant="secondary" class="w-full" onclick={() => (limit += PAGE_SIZE)}>Show more</Button>
     {/if}
