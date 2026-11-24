@@ -1,7 +1,7 @@
 <script lang="ts">
   import MemberHonors from '$lib/components/MemberHonors.svelte'
   import MemberNameLine from '$lib/components/MemberNameLine.svelte'
-  import { formatAmount, unitFor, unitPlural, unitSingular } from '$shared/units'
+  import { formatAmount, unitFor, unitPlural } from '$shared/units'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
   import HatchTrack from '$lib/components/HatchTrack.svelte'
@@ -10,9 +10,11 @@
   import SearchSelect from '$lib/components/SearchSelect.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
   import { Button } from '$lib/components/ui/button'
-  import { formatNumber, formatPercent, formatPoints, formatWeight, memberLabel } from '$lib/format'
+  import { formatNumber, formatPercent, formatShare, memberLabel } from '$lib/format'
   import { daysBetween } from '$shared/dates'
   import {
+    componentShares,
+    creditEntries,
     cumulativeByMember,
     dateRange,
     entriesInPeriod,
@@ -21,7 +23,6 @@
     PERIOD_OPTIONS,
     periodRange,
     rankBy,
-    targetPoints,
   } from '$lib/progress'
   import { cn } from '$lib/utils'
 
@@ -38,11 +39,12 @@
   let hovered = $state<string | null>(null)
   let showAllRows = $state(false)
 
-  const entries = $derived(goal ? entriesInPeriod(goal, today, period) : [])
+  const credited = $derived(goal ? creditEntries(goal) : [])
+  const entries = $derived(goal ? entriesInPeriod({ ...goal, entries: credited }, today, period) : [])
   const scores = $derived(goal ? memberScores(group.members, goal.components, entries) : [])
   const selectedComponent = $derived(goal?.components.find((c) => c.id === view))
   const rows = $derived(
-    rankBy(scores, (s) => (selectedComponent ? s.byComponent[selectedComponent.id].amount : s.points)),
+    rankBy(scores, (s) => (selectedComponent ? s.byComponent[selectedComponent.id].amount : s.contribution)),
   )
   const componentTotals = $derived(
     Object.fromEntries(
@@ -52,7 +54,7 @@
   const colorOrder = $derived(
     group.members.length <= PALETTE_SIZE || !goal
       ? group.members
-      : rankBy(memberScores(group.members, goal.components, goal.entries), (s) => s.points).map((r) => r.item.member),
+      : rankBy(memberScores(group.members, goal.components, credited), (s) => s.contribution).map((r) => r.item.member),
   )
   const colors = $derived(
     new Map(colorOrder.map((m, i) => [m.id, i < PALETTE_SIZE ? `var(--series-${i + 1})` : 'var(--series-other)'])),
@@ -71,10 +73,10 @@
     const { start, end } = periodRange(goal, today, period)
     return dateRange(start, end)
   })
-  const weights = $derived(new Map(goal?.components.map((c) => [c.id, c.weight]) ?? []))
+  const shares = $derived(componentShares(goal?.components ?? []))
   const chartSeries = $derived.by(() => {
     const valueOf = (e: (typeof entries)[number]) =>
-      selectedComponent ? (e.componentId === selectedComponent.id ? e.amount : 0) : e.amount * weights.get(e.componentId)!
+      selectedComponent ? (e.componentId === selectedComponent.id ? e.amount : 0) : e.contribution
     const totals = cumulativeByMember(group.members, entries, days, valueOf)
     return group.members.map((m) => ({
       id: m.id,
@@ -85,14 +87,14 @@
   })
   const evenShare = $derived.by(() => {
     if (!goal || period !== 'all' || days.length === 0) return null
-    const groupTarget = selectedComponent ? selectedComponent.target : targetPoints(goal.components)
+    const groupTarget = selectedComponent ? selectedComponent.target : 1
     const share = groupTarget / group.members.length
     const goalDays = daysBetween(goal.startDate, goal.endDate) + 1
     return days.map((_, i) => (share * (i + 1)) / goalDays)
   })
-  const chartFormat = (n: number) => (selectedComponent ? formatNumber(n) : formatPoints(n))
+  const chartFormat = (n: number) => (selectedComponent ? formatNumber(n) : formatShare(n))
   const chartLabel = $derived(
-    `Cumulative ${selectedComponent ? `${selectedComponent.name.toLowerCase()} (${unitPlural(selectedComponent.unit)})` : 'points'} by member`,
+    `Cumulative ${selectedComponent ? `${selectedComponent.name.toLowerCase()} (${unitPlural(selectedComponent.unit)})` : 'share of the goal'} by member`,
   )
 
   const viewOptions = $derived([
@@ -128,7 +130,7 @@
         <div class="mb-3 flex items-baseline justify-between gap-3">
           <h2 id="chart-heading" class="font-semibold tracking-tight">Progress over time</h2>
           <span class="text-xs text-muted-foreground">
-            {selectedComponent ? `${selectedComponent.name} (${unitPlural(selectedComponent.unit)})` : 'Points'}{evenShare ? '' : ' · last 7 days'}
+            {selectedComponent ? `${selectedComponent.name} (${unitPlural(selectedComponent.unit)})` : 'Share of goal'}{evenShare ? '' : ' · last 7 days'}
           </span>
         </div>
         <ProgressChart
@@ -172,8 +174,8 @@
               <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
             </div>
             <div class="shrink-0 text-right">
-              <div class="tabular font-semibold">{selectedComponent ? formatNumber(row.value) : formatPoints(row.value)}</div>
-              <div class="text-xs text-muted-foreground">{selectedComponent ? unitFor(selectedComponent.unit, row.value) : 'pts'} · {formatPercent(row.share)}</div>
+              <div class="tabular font-semibold">{selectedComponent ? formatNumber(row.value) : formatShare(row.value)}</div>
+              <div class="text-xs text-muted-foreground">{selectedComponent ? unitFor(selectedComponent.unit, row.value) : 'of goal'} · {formatPercent(row.share)}</div>
             </div>
             <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
           </button>
@@ -186,7 +188,7 @@
                 <dd class="tabular text-right text-muted-foreground">
                   {formatAmount(part.amount, component.unit)}{#if total > 0}&nbsp;·&nbsp;{formatPercent(part.amount / total)}{/if}
                 </dd>
-                <dd class="tabular text-right font-medium">{formatPoints(part.points)} pts</dd>
+                <dd class="tabular text-right font-medium">{formatShare(part.contribution)}</dd>
               {/each}
             </dl>
             <div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
@@ -201,16 +203,16 @@
     <section class="mt-6 rounded-card bg-card p-5">
       <h2 class="font-semibold tracking-tight">How scoring works</h2>
       <p class="mt-1 text-sm text-muted-foreground">
-        Every activity has a point value per unit, so harder work counts for more. Your score is everything you log × its
-        points. The bar shows your share of the group's points.
+        Each activity is a fixed share of the goal. Your score is the part of the goal your logs complete. Once an activity
+        reaches its target, later logs for it do not count. The bar shows your share of the group's total.
       </p>
       <dl class="mt-4 flex flex-col divide-y text-sm">
         {#each goal.components as component (component.id)}
           <div class="flex items-baseline justify-between gap-3 py-2.5">
             <dt class="font-medium">{component.name}</dt>
             <dd class="tabular text-right">
-              {formatWeight(component.weight)} pts / {unitSingular(component.unit)}
-              <span class="block text-xs text-muted-foreground">{formatPoints(component.target * component.weight)} pts at target</span>
+              {formatShare(shares.get(component.id) ?? 0)} of goal
+              <span class="block text-xs text-muted-foreground">Target {formatAmount(component.target, component.unit)}</span>
             </dd>
           </div>
         {/each}

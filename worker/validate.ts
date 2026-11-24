@@ -62,7 +62,7 @@ function parseComponent(value: unknown): ComponentInput {
     name: text(body.name, 'Component name'),
     unit: text(body.unit, 'Unit', LIMITS.unit),
     target: positiveNumber(body.target, 'Target', LIMITS.target),
-    weight: positiveNumber(body.weight, 'Points per unit', LIMITS.amount),
+    weight: positiveNumber(body.weight, 'Share of goal', LIMITS.amount),
   }
 }
 
