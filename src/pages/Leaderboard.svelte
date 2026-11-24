@@ -181,7 +181,7 @@
             <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
           </button>
           {#if isOpen}
-            <div transition:expand>
+            <div class="pb-3" transition:expand>
               <dl class="mx-3 mb-3 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 rounded-[14px] bg-secondary/60 px-4 py-3 text-sm">
                 {#each goal.components as component (component.id)}
                   {@const part = row.item.byComponent[component.id]}
@@ -193,7 +193,7 @@
                   <dd class="tabular text-right font-medium">{formatShare(part.contribution)}</dd>
                 {/each}
               </dl>
-              <div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
+              <div class="mx-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
             </div>
           {/if}
         </li>
