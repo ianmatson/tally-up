@@ -68,7 +68,7 @@
                 {now}
                 showComments
                 compact
-                timeOfDay
+                timeZone={group.timezone}
                 onOpen={(focus) => onOpen(entry, focus)}
               />
             </li>

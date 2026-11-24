@@ -42,10 +42,10 @@
       {#if crowns.length}
         <ul class="mt-2 flex flex-wrap gap-1.5">
           {#each crowns as crown (crown.id)}
-            <li class="inline-flex h-7 items-center gap-1.5 rounded-full bg-card pr-2.5 pl-1 text-xs font-medium">
-              <span class="grid size-5 place-items-center rounded-full bg-highlight text-highlight-foreground" aria-hidden="true"><CrownIcon class="size-3" /></span>
-              {crown.name}
-              <span class="tabular text-muted-foreground">{crown.count}<span class="sr-only"> {crown.count === 1 ? 'crown' : 'crowns'}</span></span>
+            <li class="inline-flex h-7 max-w-full items-center gap-1.5 rounded-full bg-card pr-2.5 pl-1 text-xs font-medium">
+              <span class="grid size-5 shrink-0 place-items-center rounded-full bg-highlight text-highlight-foreground" aria-hidden="true"><CrownIcon class="size-3" /></span>
+              <span class="min-w-0 truncate">{crown.name}</span>
+              <span class="tabular shrink-0 text-muted-foreground">{crown.count}<span class="sr-only"> {crown.count === 1 ? 'crown' : 'crowns'}</span></span>
             </li>
           {/each}
         </ul>

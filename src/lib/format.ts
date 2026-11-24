@@ -74,7 +74,8 @@ const localTime = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: 
 const localDateTime = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
 export const formatDateTime = (timestamp: number) => localDateTime.format(timestamp)
-export const formatTime = (timestamp: number) => localTime.format(timestamp)
+export const formatTime = (timestamp: number, timeZone: string) =>
+  new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone }).format(timestamp)
 const localWeekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
 const localMonthDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
 const WEEK_DAYS = 7

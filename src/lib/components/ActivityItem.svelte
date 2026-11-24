@@ -8,7 +8,7 @@
 
   const INLINE_COMMENTS = 2
 
-  let { entry, component, goalId, userId, membersById, now, showComments = false, compact = false, timeOfDay = false, onOpen }: {
+  let { entry, component, goalId, userId, membersById, now, showComments = false, compact = false, timeZone, onOpen }: {
     entry: Entry
     component: Component | undefined
     goalId: string
@@ -17,7 +17,7 @@
     now: Date
     showComments?: boolean
     compact?: boolean
-    timeOfDay?: boolean
+    timeZone?: string
     onOpen: (focusComposer: boolean) => void
   } = $props()
 
@@ -46,7 +46,7 @@
           <span class="text-muted-foreground">{component?.name.toLowerCase()}</span>
         </span>
         <time class="shrink-0 text-xs text-muted-foreground" datetime={new Date(entry.occurredAt).toISOString()}>
-          {timeOfDay ? formatTime(entry.occurredAt) : formatWhen(entry.occurredAt, now)}
+          {timeZone ? formatTime(entry.occurredAt, timeZone) : formatWhen(entry.occurredAt, now)}
         </time>
       </span>
       {#if entry.note}
