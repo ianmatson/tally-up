@@ -20,8 +20,12 @@
   } = $props()
 
   const queryClient = useQueryClient()
+  const HOLD_MS = 450
   let pickerOpen = $state(false)
   let showAll = $state(false)
+  let heldEmoji = $state<string | null>(null)
+  let holdTimer: ReturnType<typeof setTimeout> | undefined
+  let heldClick = false
 
   const toggle = createMutation(() => ({
     mutationFn: ({ emoji, on }: { emoji: string; on: boolean }) =>
@@ -46,26 +50,55 @@
     if (emoji) react(normalizeReaction(emoji))
     pickerOpen = false
   }
-  const names = (ids: string[]) => ids.map((id) => memberLabel(membersById, id, userId)).join(', ')
+  const nameList = (ids: string[]) => ids.map((id) => memberLabel(membersById, id, userId))
+  const names = (ids: string[]) => nameList(ids).join(', ')
+
+  function startHold(emoji: string) {
+    clearTimeout(holdTimer)
+    holdTimer = setTimeout(() => {
+      heldEmoji = emoji
+      heldClick = true
+    }, HOLD_MS)
+  }
+
+  const endHold = () => clearTimeout(holdTimer)
+
+  function tapReaction(event: MouseEvent, emoji: string) {
+    event.preventDefault()
+    if (heldClick) heldClick = false
+    else react(emoji)
+  }
 </script>
 
 <div class="flex flex-wrap items-center gap-1.5">
   {#each entry.reactions as reaction (reaction.emoji)}
     {@const pressed = reaction.userIds.includes(userId)}
-    <button
-      type="button"
-      class={cn(
-        'flex h-7 items-center gap-1 rounded-full px-2 text-sm transition-[background-color,transform] duration-150 active:scale-95',
-        pressed ? 'bg-highlight text-highlight-foreground' : 'bg-secondary hover:bg-accent',
-      )}
-      aria-pressed={pressed}
-      aria-label="{reaction.emoji} from {names(reaction.userIds)}"
-      title={names(reaction.userIds)}
-      onclick={() => react(reaction.emoji)}
-    >
-      <span class="text-[0.95rem] leading-none">{reaction.emoji}</span>
-      <span class="tabular text-xs font-semibold">{reaction.userIds.length}</span>
-    </button>
+    <Popover.Root bind:open={() => heldEmoji === reaction.emoji, (open) => !open && (heldEmoji = null)}>
+      <Popover.Trigger
+        class={cn(
+          'flex h-7 items-center gap-1 rounded-full px-2 text-sm transition-[background-color,transform] duration-150 select-none [-webkit-touch-callout:none] active:scale-95',
+          pressed ? 'bg-highlight text-highlight-foreground' : 'bg-secondary hover:bg-accent',
+        )}
+        aria-pressed={pressed}
+        aria-label="{reaction.emoji} from {names(reaction.userIds)}"
+        title={names(reaction.userIds)}
+        onpointerdown={() => startHold(reaction.emoji)}
+        onpointerup={endHold}
+        onpointerleave={endHold}
+        onpointercancel={endHold}
+        oncontextmenu={(event) => event.preventDefault()}
+        onclick={(event) => tapReaction(event, reaction.emoji)}
+      >
+        <span class="text-[0.95rem] leading-none">{reaction.emoji}</span>
+        <span class="tabular text-xs font-semibold">{reaction.userIds.length}</span>
+      </Popover.Trigger>
+      <Popover.Content align="start" side="top" collisionPadding={12} class="w-auto max-w-64 gap-1 rounded-2xl px-3.5 py-2.5" onOpenAutoFocus={(event) => event.preventDefault()}>
+        <p class="text-xs text-muted-foreground">Reacted with {reaction.emoji}</p>
+        <ul class="flex flex-col gap-0.5">
+          {#each nameList(reaction.userIds) as name, i (i)}<li class="font-medium">{name}</li>{/each}
+        </ul>
+      </Popover.Content>
+    </Popover.Root>
   {/each}
   <Popover.Root bind:open={pickerOpen} onOpenChange={(open) => open && (showAll = false)}>
     <Popover.Trigger
