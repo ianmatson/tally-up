@@ -165,13 +165,14 @@
         <Label for="invite-link">Invite link</Label>
         <div class="flex gap-2">
           <Input id="invite-link" readonly value={inviteUrl} onfocus={(e) => e.currentTarget.select()} />
-          <Button variant="secondary" size="icon" class="size-11 shrink-0" aria-label={inviteFeedback === 'copied' ? 'Copied' : 'Copy invite link'} onclick={copyInvite}>
+          <Button variant="secondary" size="icon" class="size-11 shrink-0" aria-label="Copy invite link" onclick={copyInvite}>
             {#if inviteFeedback === 'copied'}<CheckIcon />{:else}<CopyIcon />{/if}
           </Button>
           {#if canShare}
             <Button variant="secondary" size="icon" class="size-11 shrink-0" aria-label="Share invite link" onclick={shareInvite}><Share2Icon /></Button>
           {/if}
         </div>
+        <span class="sr-only" role="status">{inviteFeedback === 'copied' ? 'Invite link copied' : inviteFeedback === 'renewed' ? 'New invite link created' : ''}</span>
         <div class="flex items-center justify-between gap-3 text-xs text-muted-foreground">
           <span>Anyone with the link can join.</span>
           <button
@@ -180,7 +181,8 @@
             disabled={resetInvite.isPending}
             onclick={() => (confirmResetInvite = true)}
           >
-            {#if inviteFeedback === 'renewed'}<CheckIcon class="size-3.5" /> New link created{:else}<RefreshCwIcon class={cn('size-3.5', resetInvite.isPending && 'animate-spin')} /> New link{/if}
+            {#if inviteFeedback === 'renewed'}<CheckIcon class="size-3.5" />{:else}<RefreshCwIcon class={cn('size-3.5', resetInvite.isPending && 'animate-spin')} />{/if}
+            New link
           </button>
         </div>
       </div>
