@@ -1,5 +1,6 @@
 <script lang="ts">
   import { formatAmount } from '$shared/units'
+  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import GripVerticalIcon from '@lucide/svelte/icons/grip-vertical'
   import PlusIcon from '@lucide/svelte/icons/plus'
   import ScaleIcon from '@lucide/svelte/icons/scale'
@@ -13,7 +14,7 @@
   import { Input } from '$lib/components/ui/input'
   import { Label } from '$lib/components/ui/label'
   import { formatNumber } from '$lib/format'
-  import { MOVE_MS, prefersReducedMotion } from '$lib/motion'
+  import { expand, MOVE_MS, prefersReducedMotion } from '$lib/motion'
   import { cn } from '$lib/utils'
 
   const DEFAULT_GOAL_DAYS = 30
@@ -74,9 +75,33 @@
   }
   splitRemainder()
 
+  let openKey = $state<string | null>(untrack(() => (initial ? null : defaults.rows[0].key)))
+
+  function problem(row: Row): { field: string; message: string } | null {
+    if (!row.name.trim()) return { field: 'name', message: 'Add a name' }
+    if (!(Number(row.target) > 0)) return { field: 'target', message: 'Target must be more than 0' }
+    if (!row.unit.trim()) return { field: 'unit', message: 'Add a unit' }
+    if (!(Number(row.weight) > 0)) return { field: 'weight', message: 'Share must be more than 0' }
+    return null
+  }
+  const isComplete = (row: Row) => problem(row) === null
+  const summary = (row: Row) =>
+    problem(row)?.message ??
+    `${formatAmount(Number(row.target), row.unit.trim())} · ${formatNumber(Number(row.weight))}% · ${PERIOD_OPTIONS.find((o) => o.value === row.period)!.label}`
+
+  async function openField(row: Row, field: string) {
+    openKey = row.key
+    await tick()
+    const input = document.getElementById(`${field}-${row.key}`)
+    input?.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+    input?.focus({ preventScroll: true })
+  }
+
   function addRow() {
-    rows.push(blankRow())
+    const row = blankRow()
+    rows.push(row)
     splitRemainder()
+    openField(row, 'name')
   }
 
   function removeRow(index: number) {
@@ -159,6 +184,11 @@
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
+    const incomplete = rows.find((row) => !isComplete(row))
+    if (incomplete) {
+      openField(incomplete, problem(incomplete)!.field)
+      return
+    }
     onSubmit({
       name: name.trim(),
       startDate,
@@ -196,8 +226,8 @@
   <div class="flex flex-col gap-3">
     <div class="flex items-end justify-between gap-2">
       <div>
-        <h3 class="text-sm font-medium">Components</h3>
-        <p class="text-xs text-muted-foreground">Each component is worth a share of the goal. Its personal goal sets how often each member's target resets. Drag to reorder.</p>
+        <h3 class="text-sm font-medium">Activities</h3>
+        <p class="text-xs text-muted-foreground">Each is a share of the goal. Drag to reorder.</p>
       </div>
       <Button variant="outline" size="sm" onclick={splitEvenly}>
         <ScaleIcon />
@@ -205,9 +235,10 @@
       </Button>
     </div>
 
-    <p id="reorder-help" class="sr-only">Drag, or press the up and down arrow keys, to move this component.</p>
+    <p id="reorder-help" class="sr-only">Drag, or press the up and down arrow keys, to move this activity.</p>
     <div class="flex flex-col gap-3" bind:this={list}>
       {#each rows as row, index (row.key)}
+        {@const isOpen = openKey === row.key}
         <div
           data-row
           class={cn('relative flex flex-col gap-3 rounded-[16px] bg-secondary/60 p-3', dragKey === row.key ? 'z-10 bg-secondary shadow-[0_12px_32px_rgb(0_0_0/0.18)]' : 'transition-transform duration-200')}
@@ -220,7 +251,7 @@
                 type="button"
                 data-handle={row.key}
                 class="-ml-1 grid h-9 w-6 shrink-0 cursor-grab touch-none place-items-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none active:cursor-grabbing"
-                aria-label="Reorder {row.name.trim() || 'component'}"
+                aria-label="Reorder {row.name.trim() || 'activity'}"
                 aria-describedby="reorder-help"
                 onpointerdown={(event) => startDrag(event, row)}
                 onpointermove={drag}
@@ -232,63 +263,78 @@
                 <GripVerticalIcon class="size-4" />
               </button>
             {/if}
-            <Input aria-label="Component name" placeholder="Pushups" maxlength={LIMITS.name} bind:value={row.name} required />
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Remove component"
-              disabled={rows.length === 1}
-              onclick={() => removeRow(index)}
+            <button
+              type="button"
+              class="flex min-w-0 flex-1 items-center gap-2 rounded-xl py-1 pl-1 text-left focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              aria-expanded={isOpen}
+              onclick={() => (openKey = isOpen ? null : row.key)}
             >
-              <Trash2Icon />
-            </Button>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium">{row.name.trim() || 'New activity'}</span>
+                <span class={cn('block truncate text-xs', isComplete(row) ? 'text-muted-foreground' : 'text-destructive')}>{summary(row)}</span>
+              </span>
+              <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
+            </button>
           </div>
-          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div class="flex flex-col gap-1">
-              <Label class="text-xs text-muted-foreground" for="target-{row.key}">Target</Label>
-              <Input
-                id="target-{row.key}"
-                type="number"
-                inputmode="decimal"
-                min="0"
-                step="any"
-                value={row.target}
-                oninput={(e) => (row.target = e.currentTarget.value)}
-                required
-              />
+          {#if isOpen}
+            <div class="flex flex-col gap-3" transition:expand>
+              <div class="flex items-center gap-2">
+                <Input id="name-{row.key}" aria-label="Activity name" placeholder="Pushups" maxlength={LIMITS.name} bind:value={row.name} required />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Remove activity"
+                  disabled={rows.length === 1}
+                  onclick={() => removeRow(index)}
+                >
+                  <Trash2Icon />
+                </Button>
+              </div>
+              <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div class="flex flex-col gap-1">
+                  <Label class="text-xs text-muted-foreground" for="target-{row.key}">Target</Label>
+                  <Input
+                    id="target-{row.key}"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    step="any"
+                    value={row.target}
+                    oninput={(e) => (row.target = e.currentTarget.value)}
+                    required
+                  />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <Label class="text-xs text-muted-foreground" for="unit-{row.key}">Unit</Label>
+                  <Input id="unit-{row.key}" maxlength={LIMITS.unit} bind:value={row.unit} required />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <Label class="text-xs text-muted-foreground" for="weight-{row.key}">% of goal</Label>
+                  <Input
+                    id="weight-{row.key}"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    step="any"
+                    value={row.weight}
+                    oninput={(e) => setWeight(row, e.currentTarget.value)}
+                    required
+                  />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <Label class="text-xs text-muted-foreground" for="period-{row.key}">Personal goal</Label>
+                  <select
+                    id="period-{row.key}"
+                    class="h-11 w-full min-w-0 rounded-xl border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
+                    bind:value={row.period}
+                  >
+                    {#each PERIOD_OPTIONS as option (option.value)}
+                      <option value={option.value}>{option.label}</option>
+                    {/each}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div class="flex flex-col gap-1">
-              <Label class="text-xs text-muted-foreground" for="unit-{row.key}">Unit</Label>
-              <Input id="unit-{row.key}" maxlength={LIMITS.unit} bind:value={row.unit} required />
-            </div>
-            <div class="flex flex-col gap-1">
-              <Label class="text-xs text-muted-foreground" for="weight-{row.key}">% of goal</Label>
-              <Input
-                id="weight-{row.key}"
-                type="number"
-                inputmode="decimal"
-                min="0"
-                step="any"
-                value={row.weight}
-                oninput={(e) => setWeight(row, e.currentTarget.value)}
-                required
-              />
-            </div>
-            <div class="flex flex-col gap-1">
-              <Label class="text-xs text-muted-foreground" for="period-{row.key}">Personal goal</Label>
-              <select
-                id="period-{row.key}"
-                class="h-11 w-full min-w-0 rounded-xl border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
-                bind:value={row.period}
-              >
-                {#each PERIOD_OPTIONS as option (option.value)}
-                  <option value={option.value}>{option.label}</option>
-                {/each}
-              </select>
-            </div>
-          </div>
-          {#if row.unit.trim()}
-            <p class="text-xs text-muted-foreground">Shows as {formatAmount(1, row.unit.trim())} · {formatAmount(Number(row.target) > 1 ? Number(row.target) : 10, row.unit.trim())}</p>
           {/if}
         </div>
       {/each}
@@ -297,19 +343,19 @@
     {#if rows.length < LIMITS.components}
       <Button variant="outline" onclick={addRow}>
         <PlusIcon />
-        Add component
+        Add activity
       </Button>
     {/if}
   </div>
 
   {#if Math.abs(totalWeight - WHOLE_GOAL) >= 0.1}
     <p class="text-xs text-muted-foreground">
-      The shares add up to {formatNumber(Math.round(totalWeight * 100) / 100)}%. Each component counts in proportion to its share.
+      The shares add up to {formatNumber(Math.round(totalWeight * 100) / 100)}%. Each activity counts in proportion to its share.
     </p>
   {/if}
 
-  {#if initial}
-    <p class="text-xs text-muted-foreground">Removing a component also deletes everything logged against it.</p>
+  {#if removedComponentIds.length}
+    <p class="text-xs text-destructive">Saving deletes everything logged against the removed {removedComponentIds.length === 1 ? 'activity' : 'activities'}.</p>
   {/if}
 
   <Button type="submit" size="lg" class="h-12" disabled={pending}>{pending ? 'Saving…' : submitLabel}</Button>

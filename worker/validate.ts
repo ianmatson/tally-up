@@ -59,7 +59,7 @@ function parseComponent(value: unknown): ComponentInput {
   const body = asBody(value)
   return {
     id: typeof body.id === 'string' ? body.id : undefined,
-    name: text(body.name, 'Component name'),
+    name: text(body.name, 'Activity name'),
     unit: text(body.unit, 'Unit', LIMITS.unit),
     target: positiveNumber(body.target, 'Target', LIMITS.target),
     weight: positiveNumber(body.weight, 'Share of goal', LIMITS.amount),
