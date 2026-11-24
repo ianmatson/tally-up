@@ -95,15 +95,15 @@
     open = false
   }
 
-  async function saveEntry(input: EntryInput): Promise<string> {
-    if (!entry) return (await api<{ id: string }>(`/goals/${goal.id}/entries`, { method: 'POST', body: input })).id
-    await api(`/entries/${entry.id}`, { method: 'PUT', body: input })
-    return entry.id
+  async function saveEntry(input: EntryInput, entryId: string | undefined): Promise<string> {
+    if (!entryId) return (await api<{ id: string }>(`/goals/${goal.id}/entries`, { method: 'POST', body: input })).id
+    await api(`/entries/${entryId}`, { method: 'PUT', body: input })
+    return entryId
   }
 
   const save = createMutation(() => ({
-    mutationFn: async ({ input, photo }: { input: EntryInput; photo: Blob | null | undefined }) => {
-      const id = await saveEntry(input)
+    mutationFn: async ({ input, photo, entryId }: { input: EntryInput; photo: Blob | null | undefined; entryId: string | undefined }) => {
+      const id = await saveEntry(input, entryId)
       if (photo === undefined) return
       await api(`/entries/${id}/photo`, photo ? { method: 'PUT', body: photo } : { method: 'DELETE' }).catch(() =>
         toast.error('The entry was saved, but the photo was not'),
@@ -122,7 +122,7 @@
     if (!canSave) return
     const unchanged = entry && when === toLocalInput(entry.occurredAt)
     const occurredAt = unchanged ? entry.occurredAt : new Date(when).getTime()
-    save.mutate({ input: { componentId, amount: parsedAmount, occurredAt, note: note.trim() || null }, photo })
+    save.mutate({ input: { componentId, amount: parsedAmount, occurredAt, note: note.trim() || null }, photo, entryId: entry?.id })
   }
 </script>
 
