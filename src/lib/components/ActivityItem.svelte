@@ -3,6 +3,7 @@
   import MessageCircleIcon from '@lucide/svelte/icons/message-circle'
   import type { Component, Entry, Member } from '$shared/api'
   import { formatDateTime, formatNumber, formatTime, formatWhen, memberLabel } from '$lib/format'
+  import { cn } from '$lib/utils'
   import ReactionBar from './ReactionBar.svelte'
   import UserAvatar from './UserAvatar.svelte'
 
@@ -51,6 +52,14 @@
       </span>
       {#if entry.note}
         <span class="mt-1.5 block w-fit max-w-full rounded-[14px] rounded-tl-[4px] bg-secondary px-3 py-1.5 text-sm break-words">{entry.note}</span>
+      {/if}
+      {#if entry.photoUrl}
+        <img
+          src={entry.photoUrl}
+          alt=""
+          loading="lazy"
+          class={cn('mt-2 block aspect-[4/3] w-full rounded-2xl bg-secondary object-cover', compact ? 'max-w-40' : 'max-w-72')}
+        />
       {/if}
     </button>
 

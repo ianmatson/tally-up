@@ -3,6 +3,7 @@ import { handOverSql, OWNER_TO_ACTOR_SQL, removeMemberSql, SET_ROLE_SQL } from '
 import { TITLES, type EarnedTitle } from '../shared/achievements'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { HTTPException } from 'hono/http-exception'
 import type {
   Comment,
@@ -25,6 +26,7 @@ import { formatAmount } from '../shared/units'
 import { normalizeReaction } from '../shared/social'
 import { type AppEnv, currentUser } from './auth'
 import { notifyUsers, type PushPayload } from './notifications'
+import { ATTACH_PHOTO_SQL, DETACH_PHOTO_SQL, MEMBER_PHOTO_SQL, PHOTO_MAX_BYTES, PHOTO_PATH, PHOTO_TYPE } from './photos'
 import { profile } from './profile'
 import {
   ALL_DAYS_MASK,
@@ -331,8 +333,10 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
     db.prepare('SELECT id, name, unit, target, weight, period FROM components WHERE goal_id = ? ORDER BY position').bind(goalId),
     db
       .prepare(
-        `SELECT id, component_id AS componentId, user_id AS userId, amount, date, note, occurred_at AS occurredAt, created_at AS createdAt FROM entries
-         WHERE goal_id = ? ORDER BY created_at DESC`,
+        `SELECT e.id, e.component_id AS componentId, e.user_id AS userId, e.amount, e.date, e.note, e.occurred_at AS occurredAt,
+           e.created_at AS createdAt, '${PHOTO_PATH}' || p.key AS photoUrl
+         FROM entries e LEFT JOIN photos p ON p.entry_id = e.id
+         WHERE e.goal_id = ? ORDER BY e.created_at DESC`,
       )
       .bind(goalId),
     db
@@ -434,6 +438,34 @@ api.delete('/entries/:entryId', async (c) => {
     ...achievementStatements(c.env.DB, goal.id),
   ])
   return c.body(null, 204)
+})
+
+api.put(
+  '/entries/:entryId/photo',
+  bodyLimit({ maxSize: PHOTO_MAX_BYTES, onError: (c) => c.json({ error: 'That photo is too large' }, 413) }),
+  async (c) => {
+    const entry = await editableEntry(c.env.DB, c.req.param('entryId'), userId(c))
+    if (c.req.header('content-type') !== PHOTO_TYPE) throw new HTTPException(415, { message: 'Upload a JPEG image' })
+    const image = await c.req.arrayBuffer()
+    if (image.byteLength === 0) badRequest('Choose a photo')
+    const key = crypto.randomUUID()
+    await c.env.PHOTOS.put(key, image, { httpMetadata: { contentType: PHOTO_TYPE } })
+    await c.env.DB.batch(ATTACH_PHOTO_SQL.map((sql) => c.env.DB.prepare(sql).bind(key, entry.entry_id, Date.now())))
+    return c.json({ photoUrl: `${PHOTO_PATH}${key}` })
+  },
+)
+
+api.delete('/entries/:entryId/photo', async (c) => {
+  const entry = await editableEntry(c.env.DB, c.req.param('entryId'), userId(c))
+  await c.env.DB.prepare(DETACH_PHOTO_SQL).bind(entry.entry_id).run()
+  return c.body(null, 204)
+})
+
+api.get('/photos/:key', async (c) => {
+  const key = c.req.param('key')
+  if (!(await c.env.DB.prepare(MEMBER_PHOTO_SQL).bind(userId(c), key).first())) notFound()
+  const photo = (await c.env.PHOTOS.get(key)) ?? notFound()
+  return c.body(photo.body, 200, { 'content-type': PHOTO_TYPE, 'cache-control': 'private, max-age=31536000, immutable' })
 })
 
 async function notifyContribution(c: Context<AppEnv>, goal: GoalAccessRow, entryId: string, input: EntryInput) {

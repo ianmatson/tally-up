@@ -1,5 +1,7 @@
 <script lang="ts">
   import { unitPlural } from '$shared/units'
+  import ImagePlusIcon from '@lucide/svelte/icons/image-plus'
+  import XIcon from '@lucide/svelte/icons/x'
   import { createMutation, useQueryClient } from '@tanstack/svelte-query'
   import { untrack } from 'svelte'
   import { toast } from 'svelte-sonner'
@@ -7,6 +9,7 @@
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
   import { toLocalInput } from '$lib/format'
+  import { scaledPhoto } from '$lib/images'
   import { goalQuery } from '$lib/queries'
   import { Button } from '$lib/components/ui/button'
   import * as Drawer from '$lib/components/ui/drawer'
@@ -35,6 +38,9 @@
   let latestWhen = $state('')
   let note = $state('')
   let confirmDelete = $state(false)
+  let photo = $state<Blob | null | undefined>(undefined)
+  let preparingPhoto = $state(false)
+  let photoInput = $state<HTMLInputElement | null>(null)
 
   function resetDraft() {
     componentId = entry?.componentId ?? goal.components[0]?.id ?? ''
@@ -42,6 +48,7 @@
     latestWhen = toLocalInput(Date.now())
     when = entry ? toLocalInput(entry.occurredAt) : today > goal.endDate ? goal.endDate + GOAL_ENDED_DEFAULT_TIME : latestWhen
     note = entry?.note ?? ''
+    photo = undefined
   }
 
   $effect(() => {
@@ -51,7 +58,33 @@
   const selected = $derived(goal.components.find((c) => c.id === componentId))
   const compactTiles = $derived(goal.components.length > MAX_LARGE_TILES)
   const parsedAmount = $derived(Number(amount))
-  const canSave = $derived(!!selected && parsedAmount > 0 && !!when)
+  const canSave = $derived(!!selected && parsedAmount > 0 && !!when && !preparingPhoto)
+  const newPhotoUrl = $derived(photo ? URL.createObjectURL(photo) : null)
+  const photoUrl = $derived(photo === undefined ? (entry?.photoUrl ?? null) : newPhotoUrl)
+
+  $effect(() => {
+    const url = newPhotoUrl
+    return () => url && URL.revokeObjectURL(url)
+  })
+
+  async function onPickPhoto(event: Event) {
+    const input = event.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) return
+    preparingPhoto = true
+    try {
+      photo = await scaledPhoto(file)
+    } catch {
+      toast.error('Could not read that image')
+    } finally {
+      preparingPhoto = false
+    }
+  }
+
+  function removePhoto() {
+    photo = entry?.photoUrl ? null : undefined
+  }
 
   const onSuccess = (message: string) => () => {
     queryClient.invalidateQueries({ queryKey: goalQuery(goal.id).queryKey })
@@ -60,11 +93,20 @@
     open = false
   }
 
+  async function saveEntry(input: EntryInput): Promise<string> {
+    if (!entry) return (await api<{ id: string }>(`/goals/${goal.id}/entries`, { method: 'POST', body: input })).id
+    await api(`/entries/${entry.id}`, { method: 'PUT', body: input })
+    return entry.id
+  }
+
   const save = createMutation(() => ({
-    mutationFn: (input: EntryInput) =>
-      entry
-        ? api(`/entries/${entry.id}`, { method: 'PUT', body: input })
-        : api(`/goals/${goal.id}/entries`, { method: 'POST', body: input }),
+    mutationFn: async ({ input, photo }: { input: EntryInput; photo: Blob | null | undefined }) => {
+      const id = await saveEntry(input)
+      if (photo === undefined) return
+      await api(`/entries/${id}/photo`, photo ? { method: 'PUT', body: photo } : { method: 'DELETE' }).catch(() =>
+        toast.error('The entry was saved, but the photo was not'),
+      )
+    },
     onSuccess: onSuccess(entry ? 'Entry updated' : 'Progress logged'),
   }))
 
@@ -78,7 +120,7 @@
     if (!canSave) return
     const unchanged = entry && when === toLocalInput(entry.occurredAt)
     const occurredAt = unchanged ? entry.occurredAt : new Date(when).getTime()
-    save.mutate({ componentId, amount: parsedAmount, occurredAt, note: note.trim() || null })
+    save.mutate({ input: { componentId, amount: parsedAmount, occurredAt, note: note.trim() || null }, photo })
   }
 </script>
 
@@ -150,6 +192,28 @@
         <div class="flex min-w-0 flex-col gap-2">
           <Label for="entry-note">Note</Label>
           <Input id="entry-note" maxlength={LIMITS.note} placeholder="Optional, like “Felt strong today”" bind:value={note} />
+        </div>
+        <div class="flex flex-col items-start gap-2">
+          <Label for="entry-photo">Photo</Label>
+          {#if photoUrl}
+            <div class="relative">
+              <img src={photoUrl} alt="Attached to this entry" class="max-h-48 rounded-2xl" />
+              <button
+                type="button"
+                class="absolute top-2 right-2 grid size-8 place-items-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/75"
+                aria-label="Remove photo"
+                onclick={removePhoto}
+              >
+                <XIcon class="size-4" />
+              </button>
+            </div>
+          {:else}
+            <Button type="button" variant="outline" disabled={preparingPhoto} onclick={() => photoInput?.click()}>
+              <ImagePlusIcon />
+              {preparingPhoto ? 'Preparing…' : 'Add photo'}
+            </Button>
+          {/if}
+          <input bind:this={photoInput} id="entry-photo" type="file" accept="image/*" class="hidden" onchange={onPickPhoto} />
         </div>
       </div>
 
