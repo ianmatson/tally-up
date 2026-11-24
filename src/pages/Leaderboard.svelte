@@ -178,6 +178,8 @@
               <div class="tabular font-semibold">{selectedComponent ? formatNumber(row.value) : formatShare(row.value)}</div>
               {#if selectedComponent}
                 <div class="text-xs text-muted-foreground">{unitFor(selectedComponent.unit, row.value)} · {formatPercent(row.share)}</div>
+              {:else}
+                <span class="sr-only">of the goal, {formatPercent(row.share)} of the group total</span>
               {/if}
             </div>
             <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
