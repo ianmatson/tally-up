@@ -83,4 +83,8 @@ describe('personal goals', () => {
     const [miles] = personalGoals(group, run, 'a', now)
     expect([miles.target, miles.remaining, miles.done]).toEqual([1.1, 0.06, false])
   })
+  it('counts down to the end of the period or the goal, whichever comes first', () => {
+    const left = Object.fromEntries(personalGoals(group, goal, 'a', now).map((t) => [t.component.id, t.msLeft / 3_600_000]))
+    expect(left).toEqual({ p: 12, s: 12, m: 3 * 24 + 12, q: 12 })
+  })
 })

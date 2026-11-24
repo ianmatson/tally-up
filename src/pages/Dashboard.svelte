@@ -1,7 +1,7 @@
 <script lang="ts">
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
   import type { Entry, GoalDetail, GroupDetail, User } from '$shared/api'
-  import { daysBetween } from '$shared/dates'
+  import { addDays, daysBetween, msUntil } from '$shared/dates'
   import XIcon from '@lucide/svelte/icons/x'
   import ActivityItem from '$lib/components/ActivityItem.svelte'
   import { install } from '$lib/install.svelte'
@@ -13,7 +13,7 @@
   import TallyGlyph from '$lib/components/TallyGlyph.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
   import { Button } from '$lib/components/ui/button'
-  import { formatDays, formatMembers, formatNumber, formatNumberDown, formatShare } from '$lib/format'
+  import { formatCountdown, formatDays, formatMembers, formatNumber, formatNumberDown, formatShare } from '$lib/format'
   import { greeting } from '$lib/greeting'
   import { personalGoals } from '$lib/personal-goals'
   import { crownTallies } from '$lib/crowns'
@@ -137,7 +137,7 @@
         </div>
 
         {#if progress.phase === 'active'}
-          <div class="max-lg:order-3"><CrownRaceCard {goal} {progress} {membersById} userId={user.id} /></div>
+          <div class="max-lg:order-3"><CrownRaceCard {goal} {progress} {membersById} userId={user.id} msLeft={msUntil(addDays(progress.today, 1), group.timezone, now)} /></div>
         {/if}
       </div>
 
@@ -152,8 +152,11 @@
                   <span class="tabular text-2xl font-semibold tracking-tight">
                     <span class:text-highlight={target.done}>{formatNumberDown(target.logged)}</span><span class="ml-1 text-lg font-medium text-muted-foreground">/ {formatNumber(target.target)}</span>
                   </span>
-                  <span class="min-w-0 text-sm">
+                  <span class="min-w-0 flex-1 text-sm">
                     {unitFor(target.component.unit, target.target)} {target.component.name.toLowerCase()} <span class="text-muted-foreground">{target.period}</span>
+                  </span>
+                  <span class="tabular shrink-0 text-xs text-muted-foreground" title="Time left in this period">
+                    {formatCountdown(target.msLeft)}<span class="sr-only"> left</span>
                   </span>
                 </li>
               {/each}
