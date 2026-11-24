@@ -209,7 +209,7 @@
       <h2 class="font-semibold tracking-tight">How scoring works</h2>
       <p class="mt-1 text-sm text-muted-foreground">
         Each activity is a fixed share of the goal. Your score is the part of the goal your logs complete. Once an activity
-        reaches its target, later logs for it do not count. The bar shows your share of the group's total.
+        reaches its target, later logs for it do not count. An activity tab shows your share of that activity's target. The bar shows your share of the group's total.
       </p>
       <dl class="mt-4 flex flex-col divide-y text-sm">
         {#each goal.components as component (component.id)}
