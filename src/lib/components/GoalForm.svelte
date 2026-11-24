@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { formatAmount } from '$shared/units'
   import GripVerticalIcon from '@lucide/svelte/icons/grip-vertical'
   import PlusIcon from '@lucide/svelte/icons/plus'
   import ScaleIcon from '@lucide/svelte/icons/scale'
@@ -196,8 +195,8 @@
   <div class="flex flex-col gap-3">
     <div class="flex items-end justify-between gap-2">
       <div>
-        <h3 class="text-sm font-medium">Components</h3>
-        <p class="text-xs text-muted-foreground">Each component is worth a share of the goal. Its personal goal sets how often each member's target resets. Drag to reorder.</p>
+        <h3 class="text-sm font-medium">Activities</h3>
+        <p class="text-xs text-muted-foreground">Each is a share of the goal. Drag to reorder.</p>
       </div>
       <Button variant="outline" size="sm" onclick={splitEvenly}>
         <ScaleIcon />
@@ -205,7 +204,7 @@
       </Button>
     </div>
 
-    <p id="reorder-help" class="sr-only">Drag, or press the up and down arrow keys, to move this component.</p>
+    <p id="reorder-help" class="sr-only">Drag, or press the up and down arrow keys, to move this activity.</p>
     <div class="flex flex-col gap-3" bind:this={list}>
       {#each rows as row, index (row.key)}
         <div
@@ -220,7 +219,7 @@
                 type="button"
                 data-handle={row.key}
                 class="-ml-1 grid h-9 w-6 shrink-0 cursor-grab touch-none place-items-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none active:cursor-grabbing"
-                aria-label="Reorder {row.name.trim() || 'component'}"
+                aria-label="Reorder {row.name.trim() || 'activity'}"
                 aria-describedby="reorder-help"
                 onpointerdown={(event) => startDrag(event, row)}
                 onpointermove={drag}
@@ -232,11 +231,11 @@
                 <GripVerticalIcon class="size-4" />
               </button>
             {/if}
-            <Input aria-label="Component name" placeholder="Pushups" maxlength={LIMITS.name} bind:value={row.name} required />
+            <Input aria-label="Activity name" placeholder="Pushups" maxlength={LIMITS.name} bind:value={row.name} required />
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Remove component"
+              aria-label="Remove activity"
               disabled={rows.length === 1}
               onclick={() => removeRow(index)}
             >
@@ -287,9 +286,6 @@
               </select>
             </div>
           </div>
-          {#if row.unit.trim()}
-            <p class="text-xs text-muted-foreground">Shows as {formatAmount(1, row.unit.trim())} · {formatAmount(Number(row.target) > 1 ? Number(row.target) : 10, row.unit.trim())}</p>
-          {/if}
         </div>
       {/each}
     </div>
@@ -297,19 +293,19 @@
     {#if rows.length < LIMITS.components}
       <Button variant="outline" onclick={addRow}>
         <PlusIcon />
-        Add component
+        Add activity
       </Button>
     {/if}
   </div>
 
   {#if Math.abs(totalWeight - WHOLE_GOAL) >= 0.1}
     <p class="text-xs text-muted-foreground">
-      The shares add up to {formatNumber(Math.round(totalWeight * 100) / 100)}%. Each component counts in proportion to its share.
+      The shares add up to {formatNumber(Math.round(totalWeight * 100) / 100)}%. Each activity counts in proportion to its share.
     </p>
   {/if}
 
-  {#if initial}
-    <p class="text-xs text-muted-foreground">Removing a component also deletes everything logged against it.</p>
+  {#if removedComponentIds.length}
+    <p class="text-xs text-destructive">Saving deletes everything logged against the removed {removedComponentIds.length === 1 ? 'activity' : 'activities'}.</p>
   {/if}
 
   <Button type="submit" size="lg" class="h-12" disabled={pending}>{pending ? 'Saving…' : submitLabel}</Button>

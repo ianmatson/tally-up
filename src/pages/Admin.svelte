@@ -105,21 +105,17 @@
 <div class="mx-auto flex max-w-2xl flex-col gap-3">
   <div class="rise-in pt-4 pb-2">
     <h1 class="page-title">Admin</h1>
-    <p class="mt-0.5 text-sm text-muted-foreground">Manage {group.name}</p>
+    <p class="mt-0.5 text-sm text-muted-foreground">{group.name}</p>
   </div>
 
   <Card.Root>
     <Card.Header>
       <Card.Title>{goal && goalMode === 'edit' ? 'Current goal' : 'New goal'}</Card.Title>
-      <Card.Description>
-        {#if goal && goalMode === 'new'}
-          The current goal "{goal.name}" moves to History and can no longer be changed.
-        {:else if goal}
-          Change the dates, targets, or shares of the goal. The dashboard and leaderboard update for everyone.
-        {:else}
-          Set a time period and one or more things to do together.
-        {/if}
-      </Card.Description>
+      {#if goal && goalMode === 'new'}
+        <Card.Description>The current goal "{goal.name}" moves to History and can no longer be changed.</Card.Description>
+      {:else if !goal}
+        <Card.Description>Set a time period and one or more things to do together.</Card.Description>
+      {/if}
       {#if goal}
         <Card.Action>
           <Button variant="outline" size="sm" onclick={() => (goalMode = goalMode === 'edit' ? 'new' : 'edit')}>
@@ -152,21 +148,23 @@
     </Card.Header>
     <Card.Content class="flex flex-col gap-3">
       <Input readonly value={inviteUrl} aria-label="Invite link" onfocus={(e) => e.currentTarget.select()} />
-      <div class="flex flex-wrap gap-2">
+      <div class="flex gap-2">
         {#if canShare}
-          <Button onclick={shareInvite}><Share2Icon /> Share</Button>
+          <Button class="flex-1" onclick={shareInvite}><Share2Icon /> Share</Button>
         {/if}
-        <Button variant={canShare ? 'outline' : 'default'} class="min-w-26" onclick={copyInvite}>
+        <Button variant={canShare ? 'outline' : 'default'} class="flex-1" onclick={copyInvite}>
           {#if inviteFeedback === 'copied'}<CheckIcon /> Copied{:else}<CopyIcon /> Copy{/if}
         </Button>
-        <Button variant="ghost" disabled={resetInvite.isPending} onclick={() => (confirmResetInvite = true)}>
-          {#if resetInvite.isPending}
-            <RefreshCwIcon class="animate-spin" /> Creating…
-          {:else if inviteFeedback === 'renewed'}
-            <CheckIcon /> New link created
-          {:else}
-            <RefreshCwIcon /> New link
-          {/if}
+        <Button
+          variant="ghost"
+          size="icon"
+          class="size-11 shrink-0 text-muted-foreground"
+          aria-label={inviteFeedback === 'renewed' ? 'New link created' : 'Create a new link'}
+          title="Create a new link"
+          disabled={resetInvite.isPending}
+          onclick={() => (confirmResetInvite = true)}
+        >
+          {#if inviteFeedback === 'renewed'}<CheckIcon />{:else}<RefreshCwIcon class={resetInvite.isPending ? 'animate-spin' : ''} />{/if}
         </Button>
       </div>
     </Card.Content>
@@ -174,10 +172,22 @@
 
   <Card.Root>
     <Card.Header>
-      <Card.Title>Members</Card.Title>
+      <Card.Title>Group</Card.Title>
       <Card.Description>{formatMembers(group.members.length)}</Card.Description>
     </Card.Header>
-    <Card.Content>
+    <Card.Content class="flex flex-col gap-5">
+      <form
+        class="flex gap-2"
+        onsubmit={(e) => {
+          e.preventDefault()
+          renameGroup.mutate(groupName.trim())
+        }}
+      >
+        <Input maxlength={LIMITS.name} bind:value={groupName} aria-label="Group name" />
+        <Button type="submit" disabled={!groupName.trim() || groupName.trim() === group.name || renameGroup.isPending}>
+          Rename
+        </Button>
+      </form>
       <ul class="flex flex-col gap-3">
         {#each group.members as member (member.id)}
           <li class="flex items-center gap-3">
@@ -196,25 +206,6 @@
     </Card.Content>
   </Card.Root>
 
-  <Card.Root>
-    <Card.Header>
-      <Card.Title>Group name</Card.Title>
-    </Card.Header>
-    <Card.Content>
-      <form
-        class="flex gap-2"
-        onsubmit={(e) => {
-          e.preventDefault()
-          renameGroup.mutate(groupName.trim())
-        }}
-      >
-        <Input maxlength={LIMITS.name} bind:value={groupName} aria-label="Group name" />
-        <Button type="submit" disabled={!groupName.trim() || groupName.trim() === group.name || renameGroup.isPending}>
-          Save
-        </Button>
-      </form>
-    </Card.Content>
-  </Card.Root>
 </div>
 
 <ConfirmDialog
