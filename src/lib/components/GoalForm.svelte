@@ -77,17 +77,31 @@
 
   let openKey = $state<string | null>(untrack(() => (initial ? null : defaults.rows[0].key)))
 
-  const isComplete = (row: Row) => !!row.name.trim() && !!row.unit.trim() && Number(row.target) > 0 && Number(row.weight) > 0
+  function problem(row: Row): { field: string; message: string } | null {
+    if (!row.name.trim()) return { field: 'name', message: 'Add a name' }
+    if (!(Number(row.target) > 0)) return { field: 'target', message: 'Target must be more than 0' }
+    if (!row.unit.trim()) return { field: 'unit', message: 'Add a unit' }
+    if (!(Number(row.weight) > 0)) return { field: 'weight', message: 'Share must be more than 0' }
+    return null
+  }
+  const isComplete = (row: Row) => problem(row) === null
   const summary = (row: Row) =>
-    isComplete(row)
-      ? `${formatAmount(Number(row.target), row.unit.trim())} · ${formatNumber(Number(row.weight))}% · ${PERIOD_OPTIONS.find((o) => o.value === row.period)!.label}`
-      : 'Add a name, target, unit and share'
+    problem(row)?.message ??
+    `${formatAmount(Number(row.target), row.unit.trim())} · ${formatNumber(Number(row.weight))}% · ${PERIOD_OPTIONS.find((o) => o.value === row.period)!.label}`
+
+  async function openField(row: Row, field: string) {
+    openKey = row.key
+    await tick()
+    const input = document.getElementById(`${field}-${row.key}`)
+    input?.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+    input?.focus({ preventScroll: true })
+  }
 
   function addRow() {
     const row = blankRow()
     rows.push(row)
     splitRemainder()
-    openKey = row.key
+    openField(row, 'name')
   }
 
   function removeRow(index: number) {
@@ -172,7 +186,7 @@
     event.preventDefault()
     const incomplete = rows.find((row) => !isComplete(row))
     if (incomplete) {
-      openKey = incomplete.key
+      openField(incomplete, problem(incomplete)!.field)
       return
     }
     onSubmit({
@@ -265,7 +279,7 @@
           {#if isOpen}
             <div class="flex flex-col gap-3" transition:expand>
               <div class="flex items-center gap-2">
-                <Input aria-label="Activity name" placeholder="Pushups" maxlength={LIMITS.name} bind:value={row.name} required />
+                <Input id="name-{row.key}" aria-label="Activity name" placeholder="Pushups" maxlength={LIMITS.name} bind:value={row.name} required />
                 <Button
                   variant="ghost"
                   size="icon"
