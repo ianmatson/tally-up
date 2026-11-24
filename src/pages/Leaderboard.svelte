@@ -159,7 +159,7 @@
         {@const isMe = member.id === user.id}
         {@const isOpen = expanded === member.id}
         <li
-          class={cn('overflow-hidden rounded-card bg-card', isMe && 'ring-2 ring-highlight')}
+          class={cn('overflow-hidden rounded-card bg-card', isMe && 'ring-2 ring-highlight ring-inset')}
           onpointerenter={() => (hovered = member.id)}
           onpointerleave={() => (hovered = null)}
         >
