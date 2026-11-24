@@ -3,6 +3,7 @@
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import CrownBadge from './CrownBadge.svelte'
   import MemberHonors from './MemberHonors.svelte'
+  import { expand } from '$lib/motion'
   import { cn } from '$lib/utils'
   import { titleName } from '$shared/achievements'
   import { formatMembers } from '$lib/format'
@@ -56,7 +57,7 @@
                 <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
               {/if}
             </button>
-            {#if isOpen}<div class="mt-1 mb-2"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
+            {#if isOpen}<div class="pt-1 pb-2" transition:expand><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
           </li>
         {/each}
       </ul>
