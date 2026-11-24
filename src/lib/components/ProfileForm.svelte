@@ -6,7 +6,7 @@
   import type { User } from '$shared/api'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
-  import { squareAvatar } from '$lib/avatar'
+  import { squareAvatar } from '$lib/images'
   import { firstName as firstWord } from '$lib/format'
   import { meQuery } from '$lib/queries'
   import { Button } from '$lib/components/ui/button'

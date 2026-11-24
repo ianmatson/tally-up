@@ -108,6 +108,9 @@
           {#if entry.note}
             <p class="w-fit max-w-full rounded-[16px] rounded-tl-[4px] bg-secondary px-3.5 py-2 break-words">{entry.note}</p>
           {/if}
+          {#if entry.photoUrl}
+            <img src={entry.photoUrl} alt="Attached to this entry" class="max-h-[50vh] max-w-full self-start rounded-2xl" />
+          {/if}
           <div class="flex items-center justify-between gap-2">
             <ReactionBar {entry} goalId={goal.id} userId={user.id} {membersById} />
             {#if canEdit}

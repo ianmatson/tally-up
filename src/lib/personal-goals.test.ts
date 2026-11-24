@@ -18,7 +18,7 @@ const goal: GoalDetail = {
 }
 const entry = (componentId: string, amount: number, date: string, userId = 'a'): Entry => ({
   id: `${componentId}-${date}-${userId}`, componentId, amount, date, userId,
-  note: null, occurredAt: 0, createdAt: 0, reactions: [], comments: [],
+  note: null, occurredAt: 0, createdAt: 0, photoUrl: null, reactions: [], comments: [],
 })
 const now = new Date('2026-11-25T18:00:00Z')
 const remaining = (entries: Entry[], time = now) => personalGoals(group, { ...goal, entries }, 'a', time).map((t) => t.remaining)

@@ -18,6 +18,7 @@
       "migrations_dir": "migrations"
     }
   ],
+  "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "tally-up-photos" }],
   "send_email": [{ "name": "EMAIL" }],
   "ratelimits": [
     { "name": "LOGIN_RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },

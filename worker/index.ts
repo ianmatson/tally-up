@@ -7,11 +7,13 @@ import { type AppEnv, auth, loadUser } from './auth'
 import { emailAuth, purgeExpiredCodes } from './email-auth'
 import { invitePage } from './invite-page'
 import { sendReminders } from './notifications'
+import { purgePhotos } from './photos'
 import { avatarImage } from './profile'
 
 const CANONICAL_ORIGIN = 'https://tally.ianm.app'
 const LEGACY_HOST_SUFFIX = '.workers.dev'
 const MAX_API_BODY_BYTES = 160_000
+const PHOTO_UPLOAD_PATH = /^\/api\/entries\/[^/]+\/photo$/
 const SECURITY_HEADERS = {
   'Content-Security-Policy': "frame-ancestors 'none'",
   'X-Frame-Options': 'DENY',
@@ -32,7 +34,8 @@ app.use(async (c, next) => {
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) c.res.headers.set(name, value)
 })
 app.use(csrf())
-app.use('/api/*', bodyLimit({ maxSize: MAX_API_BODY_BYTES, onError: (c) => c.json({ error: 'That request is too large' }, 413) }))
+const apiBodyLimit = bodyLimit({ maxSize: MAX_API_BODY_BYTES, onError: (c) => c.json({ error: 'That request is too large' }, 413) })
+app.use('/api/*', (c, next) => (PHOTO_UPLOAD_PATH.test(c.req.path) ? next() : apiBodyLimit(c, next)))
 app.use('/api/*', loadUser)
 app.route('/auth', auth)
 app.route('/api/auth/email', emailAuth)
@@ -50,5 +53,5 @@ app.onError((err, c) => {
 
 export default {
   fetch: app.fetch,
-  scheduled: (_controller, env, ctx) => ctx.waitUntil(Promise.all([sendReminders(env), purgeExpiredCodes(env)])),
+  scheduled: (_controller, env, ctx) => ctx.waitUntil(Promise.all([sendReminders(env), purgeExpiredCodes(env), purgePhotos(env)])),
 } satisfies ExportedHandler<Env>

@@ -64,6 +64,7 @@ export type Entry = {
   note: string | null
   occurredAt: number
   createdAt: number
+  photoUrl: string | null
   reactions: Reaction[]
   comments: Comment[]
 }

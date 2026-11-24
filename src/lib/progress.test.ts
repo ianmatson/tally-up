@@ -17,6 +17,7 @@ const entry = (userId: string, componentId: string, amount: number, date = '2026
   note: null,
   occurredAt: 0,
   createdAt: 0,
+  photoUrl: null,
   reactions: [],
   comments: [],
 })
