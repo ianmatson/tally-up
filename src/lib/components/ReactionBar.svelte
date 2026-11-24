@@ -21,11 +21,13 @@
 
   const queryClient = useQueryClient()
   const HOLD_MS = 450
+  const HOLD_SLOP_PX = 8
   let pickerOpen = $state(false)
   let showAll = $state(false)
   let heldEmoji = $state<string | null>(null)
   let holdTimer: ReturnType<typeof setTimeout> | undefined
   let heldClick = false
+  let holdStart = { x: 0, y: 0 }
 
   const toggle = createMutation(() => ({
     mutationFn: ({ emoji, on }: { emoji: string; on: boolean }) =>
@@ -53,8 +55,10 @@
   const nameList = (ids: string[]) => ids.map((id) => memberLabel(membersById, id, userId))
   const names = (ids: string[]) => nameList(ids).join(', ')
 
-  function startHold(emoji: string) {
+  function startHold(event: PointerEvent, emoji: string) {
     clearTimeout(holdTimer)
+    heldClick = false
+    holdStart = { x: event.clientX, y: event.clientY }
     holdTimer = setTimeout(() => {
       heldEmoji = emoji
       heldClick = true
@@ -62,6 +66,10 @@
   }
 
   const endHold = () => clearTimeout(holdTimer)
+
+  function moveHold(event: PointerEvent) {
+    if (Math.hypot(event.clientX - holdStart.x, event.clientY - holdStart.y) > HOLD_SLOP_PX) endHold()
+  }
 
   function tapReaction(event: MouseEvent, emoji: string) {
     event.preventDefault()
@@ -82,7 +90,8 @@
         aria-pressed={pressed}
         aria-label="{reaction.emoji} from {names(reaction.userIds)}"
         title={names(reaction.userIds)}
-        onpointerdown={() => startHold(reaction.emoji)}
+        onpointerdown={(event) => startHold(event, reaction.emoji)}
+        onpointermove={moveHold}
         onpointerup={endHold}
         onpointerleave={endHold}
         onpointercancel={endHold}
