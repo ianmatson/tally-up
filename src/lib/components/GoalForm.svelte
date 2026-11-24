@@ -14,6 +14,7 @@
 
   const DEFAULT_GOAL_DAYS = 30
   const WHOLE_GOAL = 100
+  const MIN_SHARE = 0.01
 
   let { initial, today, submitLabel, pending, onSubmit }: {
     initial: GoalDetail | null
@@ -59,7 +60,7 @@
     const auto = rows.filter((row) => row.autoWeight)
     const fixed = rows.filter((row) => !row.autoWeight).reduce((sum, row) => sum + (Number(row.weight) || 0), 0)
     const each = fixed < WHOLE_GOAL ? (WHOLE_GOAL - fixed) / auto.length : WHOLE_GOAL / rows.length
-    for (const row of auto) row.weight = String(Math.round(each * 100) / 100)
+    for (const row of auto) row.weight = String(Math.max(MIN_SHARE, Math.round(each * 100) / 100))
   }
   splitRemainder()
 

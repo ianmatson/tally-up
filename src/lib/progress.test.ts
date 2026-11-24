@@ -36,6 +36,12 @@ describe('goalProgress', () => {
     expect(progress.components[1].neededPerDay).toBeCloseTo(40 / 16)
   })
 
+  it('marks the goal complete when every component reaches its target, whatever the shares', () => {
+    const shares = [20, 70, 10].map((weight, i) => ({ ...pushups, id: String(i), target: 10, weight }))
+    const progress = goalProgress(goal(shares, shares.map((c) => entry('a', c.id, 10))), 'UTC', new Date('2026-12-16T12:00:00Z'))
+    expect(progress.complete).toBe(true)
+  })
+
   it('caps each component at its target in the overall progress', () => {
     const progress = goalProgress(goal([pushups, miles], [entry('a', 'p', 20000)]), 'UTC', new Date('2026-12-10T00:00:00Z'))
     expect(progress.overallFraction).toBeCloseTo(0.5)
@@ -112,6 +118,7 @@ describe('memberScores and rankBy', () => {
       ['c', 0],
     ])
     expect(board[1].item.byComponent.p).toEqual({ amount: 60, contribution: expect.closeTo(0.3) })
+    expect(board[2].item.byComponent.m).toEqual({ amount: 0, contribution: 0 })
     expect(board.reduce((sum, r) => sum + r.value, 0)).toBeCloseTo(goalProgress(goal([smallPushups, smallRun], entries), 'UTC').overallFraction)
   })
 })

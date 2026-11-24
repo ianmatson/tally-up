@@ -71,7 +71,8 @@ export function creditEntries(goal: GoalWindow & Pick<GoalDetail, 'components' |
   const targets = new Map(components.map((c) => [c.id, c.target]))
   const loggedSoFar = new Map<string, number>()
   const contributions = new Map<string, number>()
-  for (const entry of entries.filter((e) => inWindow(goal, e)).sort(chronologically)) {
+  const counted = entries.filter((e) => inWindow(goal, e))
+  for (const entry of [...counted].sort(chronologically)) {
     const target = targets.get(entry.componentId)
     if (target === undefined) continue
     const before = loggedSoFar.get(entry.componentId) ?? 0
@@ -79,7 +80,7 @@ export function creditEntries(goal: GoalWindow & Pick<GoalDetail, 'components' |
     const counted = Math.max(0, Math.min(entry.amount, target - before))
     contributions.set(entry.id, (counted / target) * shares.get(entry.componentId)!)
   }
-  return entries.map((entry) => ({ ...entry, contribution: contributions.get(entry.id) ?? 0 }))
+  return counted.map((entry) => ({ ...entry, contribution: contributions.get(entry.id) ?? 0 }))
 }
 
 export type ComponentProgress = {
@@ -151,7 +152,7 @@ export function goalProgress(
     elapsedFraction,
     overallFraction,
     daysAhead: (overallFraction - elapsedFraction) * totalDays,
-    complete: overallFraction >= 1,
+    complete: components.length > 0 && components.every((c) => c.total >= c.component.target),
     components,
   }
 }
