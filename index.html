@@ -12,6 +12,18 @@
         var accent = localStorage.getItem('tally-up:accent')
         if (/^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty('--highlight', accent)
       } catch (e) {}
+      window.tallyRecoverStartup = function (event) {
+        var source = event.target instanceof HTMLScriptElement ? event.target.src : event.target instanceof HTMLLinkElement ? event.target.href : ''
+        if (!source.startsWith(location.origin + '/assets/')) return
+        try {
+          if (sessionStorage.getItem('tally-up:reloaded')) return
+          sessionStorage.setItem('tally-up:reloaded', '1')
+        } catch (e) {
+          return
+        }
+        location.reload()
+      }
+      addEventListener('error', window.tallyRecoverStartup, true)
     </script>
     <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
