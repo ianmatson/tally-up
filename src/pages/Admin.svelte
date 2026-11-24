@@ -16,9 +16,11 @@
   import { Button } from '$lib/components/ui/button'
   import * as Card from '$lib/components/ui/card'
   import { Input } from '$lib/components/ui/input'
+  import { Label } from '$lib/components/ui/label'
   import { formatMembers } from '$lib/format'
   import { allGoalsKey, goalQuery, groupQuery, groupsQuery } from '$lib/queries'
   import { navigate } from '$lib/router.svelte'
+  import { cn } from '$lib/utils'
 
   let { group, goal, today }: { group: GroupDetail; goal: GoalDetail | null; today: string } = $props()
 
@@ -143,35 +145,6 @@
 
   <Card.Root>
     <Card.Header>
-      <Card.Title>Invite friends</Card.Title>
-      <Card.Description>Anyone with this link can join the group.</Card.Description>
-    </Card.Header>
-    <Card.Content class="flex flex-col gap-3">
-      <Input readonly value={inviteUrl} aria-label="Invite link" onfocus={(e) => e.currentTarget.select()} />
-      <div class="flex gap-2">
-        {#if canShare}
-          <Button class="flex-1" onclick={shareInvite}><Share2Icon /> Share</Button>
-        {/if}
-        <Button variant={canShare ? 'outline' : 'default'} class="flex-1" onclick={copyInvite}>
-          {#if inviteFeedback === 'copied'}<CheckIcon /> Copied{:else}<CopyIcon /> Copy{/if}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="size-11 shrink-0 text-muted-foreground"
-          aria-label={inviteFeedback === 'renewed' ? 'New link created' : 'Create a new link'}
-          title="Create a new link"
-          disabled={resetInvite.isPending}
-          onclick={() => (confirmResetInvite = true)}
-        >
-          {#if inviteFeedback === 'renewed'}<CheckIcon />{:else}<RefreshCwIcon class={resetInvite.isPending ? 'animate-spin' : ''} />{/if}
-        </Button>
-      </div>
-    </Card.Content>
-  </Card.Root>
-
-  <Card.Root>
-    <Card.Header>
       <Card.Title>Group</Card.Title>
       <Card.Description>{formatMembers(group.members.length)}</Card.Description>
     </Card.Header>
@@ -188,6 +161,29 @@
           Rename
         </Button>
       </form>
+      <div class="flex flex-col gap-2">
+        <Label for="invite-link">Invite link</Label>
+        <div class="flex gap-2">
+          <Input id="invite-link" readonly value={inviteUrl} onfocus={(e) => e.currentTarget.select()} />
+          <Button variant="secondary" size="icon" class="size-11 shrink-0" aria-label={inviteFeedback === 'copied' ? 'Copied' : 'Copy invite link'} onclick={copyInvite}>
+            {#if inviteFeedback === 'copied'}<CheckIcon />{:else}<CopyIcon />{/if}
+          </Button>
+          {#if canShare}
+            <Button variant="secondary" size="icon" class="size-11 shrink-0" aria-label="Share invite link" onclick={shareInvite}><Share2Icon /></Button>
+          {/if}
+        </div>
+        <div class="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <span>Anyone with the link can join.</span>
+          <button
+            type="button"
+            class="flex shrink-0 items-center gap-1 rounded-full font-medium hover:text-foreground disabled:opacity-60"
+            disabled={resetInvite.isPending}
+            onclick={() => (confirmResetInvite = true)}
+          >
+            {#if inviteFeedback === 'renewed'}<CheckIcon class="size-3.5" /> New link created{:else}<RefreshCwIcon class={cn('size-3.5', resetInvite.isPending && 'animate-spin')} /> New link{/if}
+          </button>
+        </div>
+      </div>
       <ul class="flex flex-col gap-3">
         {#each group.members as member (member.id)}
           <li class="flex items-center gap-3">
