@@ -9,7 +9,6 @@
   import type { Entry, EntryAmount, EntryInput, GoalDetail } from '$shared/api'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
-  import { toLocalInput } from '$lib/format'
   import { scaledPhoto } from '$lib/images'
   import { goalQuery } from '$lib/queries'
   import { Button } from '$lib/components/ui/button'
@@ -34,8 +33,6 @@
   let amounts = $state<Record<string, number | null>>({})
   let picked = $state<string[]>([])
   let choosing = $state(false)
-  let when = $state('')
-  let latestWhen = $state('')
   let note = $state('')
   let confirmDelete = $state(false)
   let photo = $state<Blob | null | undefined>(undefined)
@@ -47,8 +44,6 @@
     amounts = draftAmounts(entry?.amounts ?? [])
     picked = componentIds(entry ?? lastEntry)
     choosing = false
-    latestWhen = toLocalInput(Date.now())
-    when = entry ? toLocalInput(entry.occurredAt) : today > goal.endDate ? goal.endDate + GOAL_ENDED_DEFAULT_TIME : latestWhen
     note = entry?.note ?? ''
     photo = undefined
     preparingPhoto = false
@@ -83,7 +78,7 @@
       return amount > 0 ? [{ componentId: c.id, amount }] : []
     }),
   )
-  const canSave = $derived(lines.length > 0 && !!when && !preparingPhoto)
+  const canSave = $derived(lines.length > 0 && !preparingPhoto)
   const newPhotoUrl = $derived(photo ? URL.createObjectURL(photo) : null)
   const photoUrl = $derived(photo === undefined ? (entry?.photoUrl ?? null) : newPhotoUrl)
 
@@ -142,8 +137,7 @@
   function submit(event: SubmitEvent) {
     event.preventDefault()
     if (!canSave) return
-    const unchanged = entry && when === toLocalInput(entry.occurredAt)
-    const occurredAt = unchanged ? entry.occurredAt : new Date(when).getTime()
+    const occurredAt = entry ? entry.occurredAt : today > goal.endDate ? new Date(goal.endDate + GOAL_ENDED_DEFAULT_TIME).getTime() : Date.now()
     save.mutate({ input: { amounts: lines, occurredAt, note: note.trim() || null }, photo, entryId: entry?.id, draft: draftId })
   }
 </script>
@@ -206,10 +200,6 @@
           {/if}
         </fieldset>
 
-        <div class="flex min-w-0 flex-col gap-2">
-          <Label for="entry-when">When</Label>
-          <Input id="entry-when" type="datetime-local" max={latestWhen} bind:value={when} required />
-        </div>
         <div class="flex min-w-0 flex-col gap-2">
           <Label for="entry-note">Note</Label>
           <Input id="entry-note" maxlength={LIMITS.note} placeholder="Optional, like “Felt strong today”" bind:value={note} />
