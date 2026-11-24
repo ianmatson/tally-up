@@ -115,7 +115,7 @@
         {#if goal && goalMode === 'new'}
           The current goal "{goal.name}" moves to History and can no longer be changed.
         {:else if goal}
-          Change the dates, targets, or point values. The dashboard and leaderboard update for everyone.
+          Change the dates, targets, or shares of the goal. The dashboard and leaderboard update for everyone.
         {:else}
           Set a time period and one or more things to do together.
         {/if}

@@ -93,10 +93,10 @@ describe('crowns', () => {
     expect(crown()?.user_id).toBe('b')
     expect(db.prepare("SELECT COUNT(*) AS n FROM crown_records WHERE category = 'pushups'").get()?.n).toBe(2)
   })
-  it('uses weighted points, distinct days, and all six crown categories', () => {
+  it('uses share of the goal, distinct days, and all six crown categories', () => {
     log('a', 10); log('a', 10); log('a', 2, '2026-11-23', 'run');
     log('a', 3, '2026-11-24', 'squat'); log('a', 4, '2026-11-24', 'sit')
-    expect(crown('points')?.total).toBe(67)
+    expect(crown('points')?.total).toBeCloseTo(100 * (20 / 1000 * 2000 + 2 / 100 * 1000 + 3 / 1000 * 1000 + 4 / 1000 * 1000) / 5600, 4)
     expect(crown('days')?.total).toBe(2)
     expect(db.prepare('SELECT COUNT(*) AS n FROM goal_crowns').get()?.n).toBe(6)
   })
@@ -116,7 +116,15 @@ describe('crowns', () => {
     db.exec("UPDATE components SET unit = 'min' WHERE id = 'push'")
     log()
     expect(crown()).toBeUndefined()
-    expect(crown('points')?.total).toBe(20)
+    expect(crown('points')?.total).toBeCloseTo(100 * (10 / 1000 * 2000) / 5600, 4)
+  })
+  it('credits goal share in date order and ignores logs past a component target', () => {
+    log('a', 900, '2026-11-24')
+    log('b', 200, '2026-11-23')
+    expect(crown('points')).toEqual({ user_id: 'a', total: expect.closeTo(0.8 * 35.71, 4) })
+    log('b', 1000, '2026-11-25')
+    expect(crown('points')?.user_id).toBe('a')
+    expect(crown('pushups')).toEqual({ user_id: 'b', total: 1200 })
   })
 })
 

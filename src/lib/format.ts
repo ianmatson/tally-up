@@ -4,15 +4,13 @@ import { firstName, formatNumber } from '$shared/format'
 
 export { firstName, formatNumber }
 
-const wholeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 })
-const weightFormat = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 4 })
 const percentFormat = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0 })
+const shareFormat = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 1 })
 const shortDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })
 const weekdayDate = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
 
-export const formatPoints = (n: number) => wholeFormat.format(n)
-export const formatWeight = (n: number) => weightFormat.format(n)
 export const formatPercent = (n: number) => percentFormat.format(n)
+export const formatShare = (n: number) => shareFormat.format(n)
 
 const utcDate = (date: string) => new Date(dateMs(date))
 

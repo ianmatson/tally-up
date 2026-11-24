@@ -4,10 +4,9 @@
   import CheckIcon from '@lucide/svelte/icons/check'
   import CrownIcon from '@lucide/svelte/icons/crown'
   import type { GoalDetail, GroupDetail, Member } from '$shared/api'
-  import { CROWNS, TITLES, currentStreak, type TitleId } from '$shared/achievements'
+  import { CROWNS, TITLES, currentStreak, formatCrownTotal, type TitleId } from '$shared/achievements'
   import { api } from '$lib/api'
   import { cn } from '$lib/utils'
-  import { formatAmount } from '$shared/units'
   import HatchTrack from './HatchTrack.svelte'
 
   let { member, group, goal, today, userId }: {
@@ -44,7 +43,7 @@
                 <div class="truncate font-medium">{CROWNS[crown.category].name}</div>
                 <div class="truncate text-xs text-muted-foreground">{CROWNS[crown.category].label}</div>
               </div>
-              <span class="tabular shrink-0 font-medium">{formatAmount(crown.total, CROWNS[crown.category].unit)}</span>
+              <span class="tabular shrink-0 font-medium">{formatCrownTotal(crown.category, crown.total)}</span>
             </li>
           {/each}
         </ul>

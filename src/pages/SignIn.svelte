@@ -17,7 +17,7 @@
   const FEATURES = [
     { icon: UsersIcon, title: 'One goal, the whole crew', body: '10,000 pushups and 50 miles in December? Everyone chips in, and it only counts when the group finishes together.' },
     { icon: TimerIcon, title: 'Know if you are on pace', body: 'One clear number tells you how many days ahead or behind the group is, and what it takes to catch up.' },
-    { icon: ScaleIcon, title: 'A leaderboard that is fair', body: 'Each activity has its own point value, so a hard mile counts for more than an easy pushup.' },
+    { icon: ScaleIcon, title: 'A leaderboard that is fair', body: 'Each activity is a set share of the goal, and logs past a target do not count, so everyone helps the group finish.' },
   ]
 </script>
 

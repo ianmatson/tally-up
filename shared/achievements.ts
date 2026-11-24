@@ -1,4 +1,6 @@
 import { addDays } from './dates'
+import { formatNumber } from './format'
+import { formatAmount } from './units'
 
 export const TITLES = [
   { id: 'initiate', name: 'Initiate', days: 1 },
@@ -15,12 +17,14 @@ export const CROWNS = {
   situps: { name: 'Unbreakable', label: 'Situp leader', unit: 'situps' },
   squats: { name: 'Titan', label: 'Squat leader', unit: 'squats' },
   mileage: { name: 'Blade Runner', label: 'Mileage leader', unit: 'mi' },
-  points: { name: 'GOAT', label: 'Points leader', unit: 'pts' },
+  points: { name: 'GOAT', label: 'Top contributor', unit: '% of goal' },
   days: { name: 'Relentless', label: 'Active days leader', unit: 'days' },
 } as const
 export type CrownId = keyof typeof CROWNS
 export type Crown = { category: CrownId; userId: string; total: number }
 export type EarnedTitle = { userId: string; titleId: TitleId; earnedAt: number }
+export const formatCrownTotal = (category: CrownId, total: number) =>
+  category === 'points' ? `${formatNumber(total)}% of goal` : formatAmount(total, CROWNS[category].unit)
 export type CrownRecord = { userId: string; category: CrownId; earnedAt: number }
 
 /** A streak remains live until the user misses a complete calendar day. */
