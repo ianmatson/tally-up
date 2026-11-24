@@ -10,7 +10,7 @@
   import BrandMark from './BrandMark.svelte'
   import UserMenu from './UserMenu.svelte'
 
-  let { user, currentGroup = null }: { user: User; currentGroup?: { id: string; name: string; isOwner: boolean } | null } = $props()
+  let { user, currentGroup = null }: { user: User; currentGroup?: { id: string; name: string; isAdmin: boolean } | null } = $props()
 
   let switcherOpen = $state(false)
   const groups = createQuery(() => ({ ...groupsQuery(), enabled: switcherOpen }))
@@ -47,6 +47,6 @@
         </DropdownMenu.Content>
       </DropdownMenu.Root>
     {/if}
-    <UserMenu {user} adminGroupId={currentGroup?.isOwner ? currentGroup.id : null} />
+    <UserMenu {user} adminGroupId={currentGroup?.isAdmin ? currentGroup.id : null} />
   </div>
 </header>

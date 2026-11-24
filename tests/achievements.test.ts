@@ -94,7 +94,7 @@ it('current streak uses calendar dates, preserves yesterday, and resets after a 
 
 function otherGroup(name = 'Another group') {
   db.prepare("INSERT INTO groups VALUES ('outside', ?, 'a', 'America/Chicago', 'outside-invite', 0)").run(name)
-  db.exec(`INSERT INTO memberships VALUES ('outside', 'a', 0);
+  db.exec(`INSERT INTO memberships (group_id, user_id, joined_at) VALUES ('outside', 'a', 0);
     INSERT INTO goals VALUES ('outside-goal', 'outside', 'Other goal', '2026-11-23', '2026-12-31', NULL, 0);
     INSERT INTO components (id, goal_id, name, unit, target, weight, position) VALUES ('outside-push', 'outside-goal', 'Pushups', 'reps', 100, 1, 0);`)
 }
@@ -110,7 +110,7 @@ describe('DG-only titles', () => {
     expect(db.prepare(GROUP_TITLES_SQL).all('group')).toHaveLength(1)
     expect(db.prepare(EQUIP_TITLE_SQL).run('outside', 'a', 'initiate').changes).toBe(0)
     expect(db.prepare(EQUIP_TITLE_SQL).run('group', 'a', 'initiate').changes).toBe(1)
-    db.exec("DELETE FROM memberships WHERE group_id = 'group' AND user_id = 'a'")
+    db.exec("UPDATE memberships SET role = 'admin' WHERE group_id = 'group' AND user_id = 'b'; DELETE FROM memberships WHERE group_id = 'group' AND user_id = 'a'")
     expect(db.prepare(EQUIP_TITLE_SQL).run('group', 'a', 'initiate').changes).toBe(0)
   })
   it('keeps the restriction on the original group ID through renames and duplicate names', () => {

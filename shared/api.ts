@@ -13,12 +13,13 @@ export type Member = {
   avatarUrl: string | null
   selectedTitle?: TitleId | null
   joinedAt: number
+  isAdmin: boolean
 }
 
 export type GroupSummary = {
   id: string
   name: string
-  isOwner: boolean
+  isAdmin: boolean
   memberCount: number
 }
 
@@ -34,8 +35,7 @@ export type GroupDetail = {
   id: string
   name: string
   timezone: string
-  ownerId: string
-  isOwner: boolean
+  isAdmin: boolean
   inviteCode: string | null
   members: Member[]
   goals: GoalSummary[]

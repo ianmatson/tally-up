@@ -1,12 +1,15 @@
 <script lang="ts">
   import CheckIcon from '@lucide/svelte/icons/check'
   import CopyIcon from '@lucide/svelte/icons/copy'
+  import EllipsisIcon from '@lucide/svelte/icons/ellipsis'
+  import ShieldIcon from '@lucide/svelte/icons/shield'
+  import UserMinusIcon from '@lucide/svelte/icons/user-minus'
   import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw'
   import Share2Icon from '@lucide/svelte/icons/share-2'
   import { createMutation, useQueryClient } from '@tanstack/svelte-query'
   import { untrack } from 'svelte'
   import { toast } from 'svelte-sonner'
-  import type { GoalDetail, GoalInput, GroupDetail, Member } from '$shared/api'
+  import type { GoalDetail, GoalInput, GroupDetail, Member, User } from '$shared/api'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
@@ -14,6 +17,7 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte'
   import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
   import * as Card from '$lib/components/ui/card'
   import { Input } from '$lib/components/ui/input'
   import { Label } from '$lib/components/ui/label'
@@ -22,7 +26,7 @@
   import { navigate } from '$lib/router.svelte'
   import { cn } from '$lib/utils'
 
-  let { group, goal, today }: { group: GroupDetail; goal: GoalDetail | null; today: string } = $props()
+  let { group, goal, today, user }: { group: GroupDetail; goal: GoalDetail | null; today: string; user: User } = $props()
 
   const queryClient = useQueryClient()
   const inviteUrl = $derived(`${window.location.origin}/join/${group.inviteCode}`)
@@ -72,6 +76,15 @@
     onSuccess: async () => {
       await refreshGroup()
       showFeedback('renewed')
+    },
+  }))
+
+  const setRole = createMutation(() => ({
+    mutationFn: ({ memberId, role }: { memberId: string; role: 'member' | 'admin' }) =>
+      api(`/groups/${group.id}/members/${memberId}/role`, { method: 'PUT', body: { role } }),
+    onSuccess: (_, { role }) => {
+      refreshGroup()
+      toast.success(role === 'admin' ? 'Admin added' : 'Admin removed')
     },
   }))
 
@@ -190,13 +203,27 @@
         {#each group.members as member (member.id)}
           <li class="flex items-center gap-3">
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} />
-            <span class="min-w-0 flex-1 truncate text-sm font-medium">{member.name}</span>
-            {#if member.id === group.ownerId}
-              <Badge variant="highlight">Admin</Badge>
-            {:else}
-              <Button variant="ghost" size="sm" class="-mr-2 text-muted-foreground hover:text-destructive" onclick={() => (memberToRemove = member)}>
-                Remove
-              </Button>
+            <span class="min-w-0 flex-1 truncate text-sm font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}</span>
+            {#if member.isAdmin}<Badge variant="highlight">Admin</Badge>{/if}
+            {#if member.id !== user.id}
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger
+                  class="-mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  aria-label="Manage {member.name}"
+                >
+                  <EllipsisIcon class="size-4" />
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content align="end" class="w-48 rounded-2xl p-1.5">
+                  <DropdownMenu.Item class="rounded-lg" onSelect={() => setRole.mutate({ memberId: member.id, role: member.isAdmin ? 'member' : 'admin' })}>
+                    <ShieldIcon />
+                    {member.isAdmin ? 'Remove admin' : 'Make admin'}
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item class="rounded-lg text-destructive data-highlighted:text-destructive" onSelect={() => (memberToRemove = member)}>
+                    <UserMinusIcon class="text-destructive" />
+                    Remove from group
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
             {/if}
           </li>
         {/each}

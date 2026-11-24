@@ -116,11 +116,11 @@
       </div>
       <h2 class="text-lg font-semibold tracking-tight">No goal yet</h2>
       <p class="mt-1 text-sm text-muted-foreground">
-        {group.isOwner
+        {group.isAdmin
           ? 'Set the first goal for your group: a time period and the things you want to do together.'
           : 'The group admin has not set a goal yet. You will see it here as soon as they do.'}
       </p>
-      {#if group.isOwner}<Button href="/g/{group.id}/admin" class="mt-5">Create a goal</Button>{/if}
+      {#if group.isAdmin}<Button href="/g/{group.id}/admin" class="mt-5">Create a goal</Button>{/if}
     </section>
   {:else}
     {#if goal.archived}

@@ -31,7 +31,7 @@
   const queryClient = useQueryClient()
   const membersById = $derived(new Map(group.members.map((m) => [m.id, m])))
   const component = $derived(goal.components.find((c) => c.id === entry?.componentId))
-  const canEdit = $derived(!!entry && !goal.archived && (entry.userId === user.id || group.isOwner))
+  const canEdit = $derived(!!entry && !goal.archived && (entry.userId === user.id || group.isAdmin))
 
   let draft = $state('')
   let commentToDelete = $state<{ entryId: string; commentId: string } | null>(null)
@@ -132,7 +132,7 @@
                   </div>
                   <p class="text-sm break-words whitespace-pre-line">{comment.body}</p>
                 </div>
-                {#if comment.userId === user.id || group.isOwner}
+                {#if comment.userId === user.id || group.isAdmin}
                   <button
                     type="button"
                     class="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground/60 transition-colors hover:bg-secondary hover:text-destructive"

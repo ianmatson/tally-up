@@ -1,7 +1,13 @@
 <script lang="ts">
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
+  import { createMutation, useQueryClient } from '@tanstack/svelte-query'
+  import { toast } from 'svelte-sonner'
+  import { api } from '$lib/api'
   import { crownTallies } from '$lib/crowns'
+  import { groupQuery, groupsQuery } from '$lib/queries'
+  import { navigate } from '$lib/router.svelte'
+  import ConfirmDialog from './ConfirmDialog.svelte'
   import CrownBadge from './CrownBadge.svelte'
   import MemberHonors from './MemberHonors.svelte'
   import { expand } from '$lib/motion'
@@ -17,6 +23,19 @@
   let { open = $bindable(false), group, user, goal, today }: { open: boolean; group: GroupDetail; user: User; goal: GoalDetail | null; today: string } = $props()
 
   let expanded = $state<string | null>(null)
+  let confirmLeave = $state(false)
+  const queryClient = useQueryClient()
+  const lastMember = $derived(group.members.length === 1)
+  const leave = createMutation(() => ({
+    mutationFn: () => api(`/groups/${group.id}/membership`, { method: 'DELETE' }),
+    onSuccess: async () => {
+      open = false
+      queryClient.removeQueries({ queryKey: groupQuery(group.id).queryKey })
+      await queryClient.invalidateQueries({ queryKey: groupsQuery().queryKey })
+      toast.success(lastMember ? 'Group deleted' : `You left ${group.name}`)
+      navigate('/')
+    },
+  }))
   $effect(() => { if (open) expanded = user.id })
 
   const crowns = $derived(goal ? crownTallies(goal, today) : new Map())
@@ -54,7 +73,7 @@
                   {[group.achievementsEnabled && titleName(member.selectedTitle), `Joined ${joined.format(member.joinedAt)}`].filter(Boolean).join(' · ')}
                 </div>
               </div>
-              {#if member.id === group.ownerId}<Badge variant="highlight">Admin</Badge>{/if}
+              {#if member.isAdmin}<Badge variant="highlight">Admin</Badge>{/if}
               {#if hasHonors}
                 <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
               {/if}
@@ -63,13 +82,24 @@
           </li>
         {/each}
       </ul>
-      {#if group.isOwner}
-        <Drawer.Footer class="pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <Drawer.Footer class="pb-[max(1rem,env(safe-area-inset-bottom))]">
+        {#if group.isAdmin}
           <Button href="/g/{group.id}/admin" variant="secondary" size="lg" class="h-12" onclick={() => (open = false)}>Invite or manage members</Button>
-        </Drawer.Footer>
-      {:else}
-        <div class="h-[max(1rem,env(safe-area-inset-bottom))]"></div>
-      {/if}
+        {/if}
+        <Button variant="ghost" class="text-muted-foreground hover:text-destructive" disabled={leave.isPending} onclick={() => (confirmLeave = true)}>
+          Leave group
+        </Button>
+      </Drawer.Footer>
     </div>
   </Drawer.Content>
 </Drawer.Root>
+
+<ConfirmDialog
+  bind:open={confirmLeave}
+  title={lastMember ? `Delete ${group.name}?` : `Leave ${group.name}?`}
+  description={lastMember
+    ? 'You are the only member, so leaving deletes the group and all of its goals.'
+    : 'This deletes everything you logged, commented and reacted in this group. If everyone else has left, the group is deleted too.'}
+  confirmLabel={lastMember ? 'Delete group' : 'Leave group'}
+  onConfirm={() => leave.mutate()}
+/>

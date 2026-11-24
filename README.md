@@ -6,7 +6,7 @@ Stack: Svelte 5 (client-rendered) + TanStack Query + shadcn-svelte, served by a 
 
 ## How the numbers work
 
-- Each component's **weight** is its share of the whole goal, entered as a percentage. Weights are relative, so they count in proportion even when they do not add up to 100. New components split the goal evenly; the admin can change this.
+- Each component's **weight** is its share of the whole goal, entered as a percentage. Weights are relative, so they count in proportion even when they do not add up to 100. New components split the goal evenly; an admin can change this. A group can have several admins. When the last admin leaves or deletes their account, the longest-standing member becomes admin.
 - **Overall progress** is the sum of each component's share × its completion, with each component capped at its target.
 - A member's **contribution** is the part of the goal their logs complete. Logs are credited in date order; once a component reaches its target, later logs for it count for nothing, so members' contributions add up to overall progress.
 - **Days ahead/behind** is `(overall progress − share of the period elapsed) × goal length in days`, using the group creator's time zone.

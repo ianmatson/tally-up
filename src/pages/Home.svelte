@@ -75,7 +75,7 @@
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2 font-medium">
               <span class="truncate">{group.name}</span>
-              {#if group.isOwner}<Badge variant="highlight">Admin</Badge>{/if}
+              {#if group.isAdmin}<Badge variant="highlight">Admin</Badge>{/if}
             </div>
             <div class="text-sm text-muted-foreground">{formatMembers(group.memberCount)}</div>
           </div>
