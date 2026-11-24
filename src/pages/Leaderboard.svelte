@@ -100,6 +100,7 @@
     { value: OVERALL, label: 'Overall' },
     ...(goal?.components.map((c) => ({ value: c.id, label: c.name })) ?? []),
   ])
+  const viewLabel = $derived(viewOptions.find((o) => o.value === view)?.label)
 </script>
 
 <div class="mx-auto max-w-2xl">
@@ -108,8 +109,8 @@
       <h1 class="page-title">Leaderboard</h1>
       {#if goal}
         <Select.Root type="single" bind:value={view}>
-          <Select.Trigger aria-label="Ranking" class="h-9 max-w-44 min-w-0 rounded-full border-0 bg-secondary px-3.5 font-medium shadow-none dark:bg-secondary">
-            <span class="truncate">{viewOptions.find((o) => o.value === view)?.label}</span>
+          <Select.Trigger aria-label="Ranking: {viewLabel}" class="h-9 max-w-44 min-w-0 rounded-full border-0 bg-secondary px-3.5 font-medium shadow-none dark:bg-secondary">
+            <span class="truncate">{viewLabel}</span>
           </Select.Trigger>
           <Select.Content align="end" class="rounded-2xl">
             {#each viewOptions as option (option.value)}
