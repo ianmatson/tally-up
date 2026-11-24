@@ -5,6 +5,7 @@
   import XIcon from '@lucide/svelte/icons/x'
   import ActivityItem from '$lib/components/ActivityItem.svelte'
   import { install } from '$lib/install.svelte'
+  import CrownRaceCard from '$lib/components/CrownRaceCard.svelte'
   import GoalProgressCard from '$lib/components/GoalProgressCard.svelte'
   import MemberNameLine from '$lib/components/MemberNameLine.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
@@ -133,6 +134,10 @@
         <div class="max-lg:order-1">
           <GoalProgressCard {goal} {progress} memberCount={group.members.length} {daysToStart} />
         </div>
+
+        {#if progress.phase === 'active'}
+          <div class="max-lg:order-2"><CrownRaceCard {goal} {progress} {membersById} userId={user.id} /></div>
+        {/if}
 
         <section class="rise-in rounded-card bg-card p-4 [animation-delay:180ms] max-lg:order-4 sm:p-5" aria-label="Leaderboard">
           <div class="mb-3 flex items-center justify-between gap-3">

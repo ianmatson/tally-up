@@ -6,16 +6,15 @@
   import type { GoalDetail, GroupDetail, Member } from '$shared/api'
   import { TITLES, currentStreak, type TitleId } from '$shared/achievements'
   import { api } from '$lib/api'
-  import { crownTallies } from '$lib/crowns'
+  import type { CrownTally } from '$lib/crowns'
   import { cn } from '$lib/utils'
   import HatchTrack from './HatchTrack.svelte'
 
-  let { member, group, goal, today, userId }: {
-    member: Member; group: GroupDetail; goal: GoalDetail | null; today: string; userId: string
+  let { member, group, goal, tally, today, userId }: {
+    member: Member; group: GroupDetail; goal: GoalDetail | null; tally: CrownTally | undefined; today: string; userId: string
   } = $props()
   const client = useQueryClient()
   const isMe = $derived(member.id === userId)
-  const tally = $derived(goal ? crownTallies(goal, today).get(member.id) : undefined)
   const crowns = $derived(
     tally && goal
       ? [

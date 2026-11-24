@@ -6,13 +6,34 @@ export type CrownTally = { total: number; overall: number; byComponent: Map<stri
 
 const TIE_PRECISION = 1e12
 
-function dayLeader(entries: CreditedEntry[]): string | null {
+export type Standing = { userIds: string[]; contribution: number }
+
+function dayLeaders(entries: CreditedEntry[]): Standing {
   const totals = new Map<string, number>()
   for (const entry of entries) totals.set(entry.userId, (totals.get(entry.userId) ?? 0) + entry.contribution)
-  const [first, second] = [...totals]
-    .map(([userId, total]) => ({ userId, total: Math.round(total * TIE_PRECISION) }))
-    .sort((a, b) => b.total - a.total)
-  return first && first.total !== second?.total ? first.userId : null
+  let best = 0
+  let userIds: string[] = []
+  for (const [userId, total] of totals) {
+    const rounded = Math.round(total * TIE_PRECISION)
+    if (rounded > best) [best, userIds] = [rounded, [userId]]
+    else if (rounded === best && rounded > 0) userIds.push(userId)
+  }
+  return { userIds, contribution: best / TIE_PRECISION }
+}
+
+const soleLeader = (entries: CreditedEntry[]) => {
+  const { userIds } = dayLeaders(entries)
+  return userIds.length === 1 ? userIds[0] : null
+}
+
+const countedOn = (entries: CreditedEntry[], day: string) => entries.filter((e) => e.date === day && e.contribution > 0)
+
+export function todaysStandings(goal: Pick<GoalDetail, 'startDate' | 'endDate' | 'components' | 'entries'>, today: string) {
+  const entries = countedOn(creditEntries(goal), today)
+  return {
+    overall: dayLeaders(entries),
+    byComponent: new Map(goal.components.map((c) => [c.id, dayLeaders(entries.filter((e) => e.componentId === c.id))])),
+  }
 }
 
 export function crownTallies(goal: Pick<GoalDetail, 'startDate' | 'endDate' | 'components' | 'entries'>, today: string): Map<string, CrownTally> {
@@ -33,10 +54,10 @@ export function crownTallies(goal: Pick<GoalDetail, 'startDate' | 'endDate' | 'c
     return tally
   }
   for (const entries of entriesByDay.values()) {
-    const overall = dayLeader(entries)
+    const overall = soleLeader(entries)
     if (overall) tallyFor(overall).overall++
     for (const component of goal.components) {
-      const leader = dayLeader(entries.filter((e) => e.componentId === component.id))
+      const leader = soleLeader(entries.filter((e) => e.componentId === component.id))
       if (!leader) continue
       const { byComponent } = tallyFor(leader)
       byComponent.set(component.id, (byComponent.get(component.id) ?? 0) + 1)

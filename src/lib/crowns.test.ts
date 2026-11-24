@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Component, Entry } from '$shared/api'
-import { crownTallies } from './crowns'
+import { crownTallies, todaysStandings } from './crowns'
 
 const pushups: Component = { id: 'p', name: 'Pushups', unit: 'reps', target: 100, weight: 50 }
 const miles: Component = { id: 'm', name: 'Run', unit: 'miles', target: 10, weight: 50 }
@@ -52,5 +52,13 @@ describe('daily crowns', () => {
       entry('b', 'p', 50, '2026-12-03'),
     ]
     expect(summary(crownTallies(goal(entries), '2026-12-10'))).toEqual({ a: { total: 2, overall: 1, p: 1 } })
+  })
+
+  it("shows today's leaders and ties for each category", () => {
+    const entries = [entry('a', 'p', 10, '2026-12-05'), entry('b', 'p', 10, '2026-12-05'), entry('b', 'm', 1, '2026-12-05'), entry('a', 'm', 9, '2026-12-04')]
+    const standings = todaysStandings(goal(entries), '2026-12-05')
+    expect(standings.overall).toEqual({ userIds: ['b'], contribution: 0.1 })
+    expect(standings.byComponent.get('p')).toEqual({ userIds: ['a', 'b'], contribution: 0.05 })
+    expect(standings.byComponent.get('m')).toEqual({ userIds: ['b'], contribution: 0.05 })
   })
 })

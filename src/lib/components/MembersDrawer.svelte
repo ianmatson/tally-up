@@ -59,7 +59,7 @@
                 <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
               {/if}
             </button>
-            {#if isOpen}<div class="pt-1 pb-2" transition:expand><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>{/if}
+            {#if isOpen}<div class="pt-1 pb-2" transition:expand><MemberHonors {member} {group} {goal} tally={crowns.get(member.id)} {today} userId={user.id} /></div>{/if}
           </li>
         {/each}
       </ul>

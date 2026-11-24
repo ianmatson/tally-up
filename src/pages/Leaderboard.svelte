@@ -199,7 +199,7 @@
                   <dd class="tabular text-right font-medium">{formatShare(part.contribution)}</dd>
                 {/each}
               </dl>
-              <div class="mx-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
+              <div class="mx-3"><MemberHonors {member} {group} {goal} tally={crowns.get(member.id)} {today} userId={user.id} /></div>
             </div>
           {/if}
         </li>
