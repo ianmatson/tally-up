@@ -74,6 +74,14 @@ const localTime = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: 
 const localDateTime = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
 export const formatDateTime = (timestamp: number) => localDateTime.format(timestamp)
+const DISPLAY_PRECISION = 1e6
+const WHOLE_NUMBER_FROM = 100
+
+export const formatNumberDown = (n: number) => {
+  const step = Math.abs(n) >= WHOLE_NUMBER_FROM ? 1 : 10
+  return formatNumber(Math.floor(Math.round(n * step * DISPLAY_PRECISION) / DISPLAY_PRECISION) / step)
+}
+
 export const formatTime = (timestamp: number, timeZone: string) =>
   new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone }).format(timestamp)
 const localWeekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' })

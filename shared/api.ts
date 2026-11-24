@@ -110,7 +110,7 @@ export type ComponentInput = {
   unit: string
   target: number
   weight: number
-  period: ComponentPeriod
+  period?: ComponentPeriod
 }
 
 export type GoalInput = {

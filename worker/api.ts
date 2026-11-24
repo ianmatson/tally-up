@@ -135,7 +135,7 @@ async function editableEntry(db: D1Database, entryId: string, uid: string): Prom
 function insertComponent(db: D1Database, goalId: string, comp: ComponentInput, position: number) {
   return db
     .prepare('INSERT INTO components (id, goal_id, name, unit, target, weight, period, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(crypto.randomUUID(), goalId, comp.name, comp.unit, comp.target, comp.weight, comp.period, position)
+    .bind(crypto.randomUUID(), goalId, comp.name, comp.unit, comp.target, comp.weight, comp.period ?? 'day', position)
 }
 
 export const api = new Hono<AppEnv>()
@@ -372,8 +372,8 @@ api.put('/goals/:goalId', async (c) => {
     ...input.components.map((comp, position) =>
       comp.id
         ? db
-            .prepare('UPDATE components SET name = ?, unit = ?, target = ?, weight = ?, period = ?, position = ? WHERE id = ? AND goal_id = ?')
-            .bind(comp.name, comp.unit, comp.target, comp.weight, comp.period, position, comp.id, goal.id)
+            .prepare('UPDATE components SET name = ?, unit = ?, target = ?, weight = ?, period = COALESCE(?, period), position = ? WHERE id = ? AND goal_id = ?')
+            .bind(comp.name, comp.unit, comp.target, comp.weight, comp.period ?? null, position, comp.id, goal.id)
         : insertComponent(db, goal.id, comp, position),
     ),
   ])
