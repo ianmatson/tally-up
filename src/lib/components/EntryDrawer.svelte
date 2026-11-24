@@ -40,6 +40,7 @@
   let confirmDelete = $state(false)
   let photo = $state<Blob | null | undefined>(undefined)
   let preparingPhoto = $state(false)
+  let draftId = 0
   let photoInput = $state<HTMLInputElement | null>(null)
 
   function resetDraft() {
@@ -49,6 +50,8 @@
     when = entry ? toLocalInput(entry.occurredAt) : today > goal.endDate ? goal.endDate + GOAL_ENDED_DEFAULT_TIME : latestWhen
     note = entry?.note ?? ''
     photo = undefined
+    preparingPhoto = false
+    draftId++
   }
 
   $effect(() => {
@@ -72,14 +75,13 @@
     const file = input.files?.[0]
     input.value = ''
     if (!file) return
+    const pickedFor = draftId
     preparingPhoto = true
-    try {
-      photo = await scaledPhoto(file)
-    } catch {
-      toast.error('Could not read that image')
-    } finally {
-      preparingPhoto = false
-    }
+    const scaled = await scaledPhoto(file).catch(() => null)
+    if (pickedFor !== draftId) return
+    preparingPhoto = false
+    if (scaled) photo = scaled
+    else toast.error('Could not read that image')
   }
 
   function removePhoto() {
