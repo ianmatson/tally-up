@@ -88,11 +88,11 @@
     photo = entry?.photoUrl ? null : undefined
   }
 
-  const onSuccess = (message: string) => () => {
+  function finish(message: string, draft: number) {
     queryClient.invalidateQueries({ queryKey: goalQuery(goal.id).queryKey })
     queryClient.invalidateQueries({ queryKey: ['group'] })
     toast.success(message)
-    open = false
+    if (draft === draftId) open = false
   }
 
   async function saveEntry(input: EntryInput, entryId: string | undefined): Promise<string> {
@@ -102,19 +102,19 @@
   }
 
   const save = createMutation(() => ({
-    mutationFn: async ({ input, photo, entryId }: { input: EntryInput; photo: Blob | null | undefined; entryId: string | undefined }) => {
+    mutationFn: async ({ input, photo, entryId }: { input: EntryInput; photo: Blob | null | undefined; entryId: string | undefined; draft: number }) => {
       const id = await saveEntry(input, entryId)
       if (photo === undefined) return
       await api(`/entries/${id}/photo`, photo ? { method: 'PUT', body: photo } : { method: 'DELETE' }).catch(() =>
         toast.error('The entry was saved, but the photo was not'),
       )
     },
-    onSuccess: onSuccess(entry ? 'Entry updated' : 'Progress logged'),
+    onSuccess: (_result, { entryId, draft }) => finish(entryId ? 'Entry updated' : 'Progress logged', draft),
   }))
 
   const remove = createMutation(() => ({
-    mutationFn: (id: string) => api(`/entries/${id}`, { method: 'DELETE' }),
-    onSuccess: onSuccess('Entry deleted'),
+    mutationFn: ({ id }: { id: string; draft: number }) => api(`/entries/${id}`, { method: 'DELETE' }),
+    onSuccess: (_result, { draft }) => finish('Entry deleted', draft),
   }))
 
   function submit(event: SubmitEvent) {
@@ -122,7 +122,7 @@
     if (!canSave) return
     const unchanged = entry && when === toLocalInput(entry.occurredAt)
     const occurredAt = unchanged ? entry.occurredAt : new Date(when).getTime()
-    save.mutate({ input: { componentId, amount: parsedAmount, occurredAt, note: note.trim() || null }, photo, entryId: entry?.id })
+    save.mutate({ input: { componentId, amount: parsedAmount, occurredAt, note: note.trim() || null }, photo, entryId: entry?.id, draft: draftId })
   }
 </script>
 
@@ -245,6 +245,6 @@
     title="Delete this entry?"
     description="It is removed from the group totals, along with its comments and reactions. You cannot undo this."
     confirmLabel="Delete entry"
-    onConfirm={() => remove.mutate(entry.id)}
+    onConfirm={() => remove.mutate({ id: entry.id, draft: draftId })}
   />
 {/if}
