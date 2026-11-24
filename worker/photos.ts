@@ -6,11 +6,8 @@ export const PHOTO_PATH = '/api/photos/'
 export const PHOTO_LIFETIME_MS = 90 * DAY_MS
 const R2_DELETE_LIMIT = 1000
 
-export const ATTACH_PHOTO_SQL = [
-  'UPDATE photos SET entry_id = NULL WHERE entry_id = ?2',
-  'INSERT INTO photos (key, entry_id, created_at) VALUES (?1, ?2, ?3)',
-]
 export const DETACH_PHOTO_SQL = 'UPDATE photos SET entry_id = NULL WHERE entry_id = ?'
+export const INSERT_PHOTO_SQL = 'INSERT INTO photos (key, entry_id, created_at) VALUES (?, ?, ?)'
 export const MEMBER_PHOTO_SQL = `SELECT 1 FROM photos p
   JOIN entries e ON e.id = p.entry_id
   JOIN goals go ON go.id = e.goal_id

@@ -26,7 +26,7 @@ import { formatAmount } from '../shared/units'
 import { normalizeReaction } from '../shared/social'
 import { type AppEnv, currentUser } from './auth'
 import { notifyUsers, type PushPayload } from './notifications'
-import { ATTACH_PHOTO_SQL, DETACH_PHOTO_SQL, MEMBER_PHOTO_SQL, PHOTO_MAX_BYTES, PHOTO_PATH, PHOTO_TYPE } from './photos'
+import { DETACH_PHOTO_SQL, INSERT_PHOTO_SQL, MEMBER_PHOTO_SQL, PHOTO_MAX_BYTES, PHOTO_PATH, PHOTO_TYPE } from './photos'
 import { profile } from './profile'
 import {
   ALL_DAYS_MASK,
@@ -450,7 +450,10 @@ api.put(
     if (image.byteLength === 0) badRequest('Choose a photo')
     const key = crypto.randomUUID()
     await c.env.PHOTOS.put(key, image, { httpMetadata: { contentType: PHOTO_TYPE } })
-    await c.env.DB.batch(ATTACH_PHOTO_SQL.map((sql) => c.env.DB.prepare(sql).bind(key, entry.entry_id, Date.now())))
+    await c.env.DB.batch([
+      c.env.DB.prepare(DETACH_PHOTO_SQL).bind(entry.entry_id),
+      c.env.DB.prepare(INSERT_PHOTO_SQL).bind(key, entry.entry_id, Date.now()),
+    ])
     return c.json({ photoUrl: `${PHOTO_PATH}${key}` })
   },
 )
