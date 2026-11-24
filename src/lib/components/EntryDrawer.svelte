@@ -1,39 +1,40 @@
 <script lang="ts">
-  import { unitPlural } from '$shared/units'
+  import { describeActivity, unitPlural } from '$shared/units'
   import ImagePlusIcon from '@lucide/svelte/icons/image-plus'
+  import PlusIcon from '@lucide/svelte/icons/plus'
+  import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw'
   import XIcon from '@lucide/svelte/icons/x'
   import { createMutation, useQueryClient } from '@tanstack/svelte-query'
-  import { untrack } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import { toast } from 'svelte-sonner'
-  import type { Entry, EntryInput, GoalDetail } from '$shared/api'
+  import type { Entry, EntryAmount, EntryInput, GoalDetail } from '$shared/api'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
-  import { toLocalInput } from '$lib/format'
+  import { activityLines, toLocalInput } from '$lib/format'
   import { scaledPhoto } from '$lib/images'
   import { goalQuery } from '$lib/queries'
   import { Button } from '$lib/components/ui/button'
   import * as Drawer from '$lib/components/ui/drawer'
   import ConfirmDialog from './ConfirmDialog.svelte'
   import DrawerCloseButton from './DrawerCloseButton.svelte'
-  import SearchSelect from './SearchSelect.svelte'
   import { Input } from '$lib/components/ui/input'
   import { Label } from '$lib/components/ui/label'
-  import { cn } from '$lib/utils'
 
-  let { open = $bindable(false), goal, today, entry }: {
+  let { open = $bindable(false), goal, today, entry, userId }: {
     open: boolean
     goal: GoalDetail
     today: string
     entry: Entry | null
+    userId: string
   } = $props()
 
   const queryClient = useQueryClient()
   const GOAL_ENDED_DEFAULT_TIME = 'T12:00'
-  const MAX_LARGE_TILES = 6
-  const MAX_CHIPS = 10
+  const MAX_ALL_ROWS = 6
 
-  let componentId = $state('')
-  let amount = $state('')
+  let amounts = $state<Record<string, number | null>>({})
+  let picked = $state<string[]>([])
+  let choosing = $state(false)
   let when = $state('')
   let latestWhen = $state('')
   let note = $state('')
@@ -44,8 +45,9 @@
   let photoInput = $state<HTMLInputElement | null>(null)
 
   function resetDraft() {
-    componentId = entry?.componentId ?? goal.components[0]?.id ?? ''
-    amount = entry ? String(entry.amount) : ''
+    amounts = draftAmounts(entry?.amounts ?? [])
+    picked = componentIds(entry ?? lastEntry)
+    choosing = false
     latestWhen = toLocalInput(Date.now())
     when = entry ? toLocalInput(entry.occurredAt) : today > goal.endDate ? goal.endDate + GOAL_ENDED_DEFAULT_TIME : latestWhen
     note = entry?.note ?? ''
@@ -54,14 +56,43 @@
     draftId++
   }
 
+  function draftAmounts(lines: EntryAmount[]) {
+    return Object.fromEntries(lines.map((line) => [line.componentId, line.amount]))
+  }
+
+  function componentIds(source: Entry | null) {
+    return source?.amounts.map((line) => line.componentId) ?? []
+  }
+
+  function repeatLast() {
+    if (!lastEntry) return
+    amounts = draftAmounts(lastEntry.amounts)
+    picked = [...new Set([...picked, ...componentIds(lastEntry)])]
+  }
+
+  async function pick(componentId: string) {
+    picked = [...picked, componentId]
+    await tick()
+    document.getElementById(`entry-amount-${componentId}`)?.focus()
+  }
+
   $effect(() => {
     if (open) untrack(resetDraft)
   })
 
-  const selected = $derived(goal.components.find((c) => c.id === componentId))
-  const compactTiles = $derived(goal.components.length > MAX_LARGE_TILES)
-  const parsedAmount = $derived(Number(amount))
-  const canSave = $derived(!!selected && parsedAmount > 0 && !!when && !preparingPhoto)
+  const componentsById = $derived(new Map(goal.components.map((c) => [c.id, c])))
+  const lines = $derived(
+    rows.flatMap((c) => {
+      const amount = amounts[c.id] ?? 0
+      return amount > 0 ? [{ componentId: c.id, amount }] : []
+    }),
+  )
+  const lastEntry = $derived(entry ? null : (goal.entries.find((e) => e.userId === userId) ?? null))
+  const lastActivity = $derived(lastEntry && describeActivity(activityLines(lastEntry.amounts, componentsById)))
+  const showAll = $derived(goal.components.length <= MAX_ALL_ROWS)
+  const rows = $derived(showAll ? goal.components : goal.components.filter((c) => picked.includes(c.id)))
+  const unpicked = $derived(showAll ? [] : goal.components.filter((c) => !picked.includes(c.id)))
+  const canSave = $derived(lines.length > 0 && !!when && !preparingPhoto)
   const newPhotoUrl = $derived(photo ? URL.createObjectURL(photo) : null)
   const photoUrl = $derived(photo === undefined ? (entry?.photoUrl ?? null) : newPhotoUrl)
 
@@ -122,7 +153,7 @@
     if (!canSave) return
     const unchanged = entry && when === toLocalInput(entry.occurredAt)
     const occurredAt = unchanged ? entry.occurredAt : new Date(when).getTime()
-    save.mutate({ input: { componentId, amount: parsedAmount, occurredAt, note: note.trim() || null }, photo, entryId: entry?.id, draft: draftId })
+    save.mutate({ input: { amounts: lines, occurredAt, note: note.trim() || null }, photo, entryId: entry?.id, draft: draftId })
   }
 </script>
 
@@ -136,56 +167,66 @@
       </Drawer.Header>
 
       <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4">
-        <fieldset class="flex flex-col gap-2">
-          <legend class="mb-2 text-sm font-medium">Activity</legend>
-          {#if goal.components.length > MAX_CHIPS}
-            <SearchSelect
-              bind:value={componentId}
-              label="Activity"
-              placeholder="Search activities"
-              options={goal.components.map((c) => ({ value: c.id, label: c.name, hint: unitPlural(c.unit) }))}
-            />
-          {:else}
-          <div class={compactTiles ? 'flex flex-wrap gap-1.5' : 'grid grid-cols-2 gap-2'}>
-            {#each goal.components as component (component.id)}
-              <button
-                type="button"
-                class={cn(
-                  'text-left text-sm transition-colors duration-150',
-                  compactTiles ? 'rounded-full px-3.5 py-2' : 'rounded-2xl px-4 py-3',
-                  component.id === componentId
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary hover:bg-accent',
-                )}
-                aria-pressed={component.id === componentId}
-                onclick={() => (componentId = component.id)}
-              >
-                {#if compactTiles}
-                  <span class="font-medium">{component.name}</span>
-                {:else}
-                  <span class="block font-medium">{component.name}</span>
-                  <span class="block text-xs opacity-70">{unitPlural(component.unit)}</span>
-                {/if}
-              </button>
-            {/each}
-          </div>
+        <fieldset class="flex flex-col">
+          <legend class="mb-2 text-sm font-medium">What did you do?</legend>
+          {#if lastEntry}
+            <button
+              type="button"
+              class="mb-2 flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3 text-left transition-colors hover:bg-accent"
+              onclick={repeatLast}
+            >
+              <RotateCcwIcon class="size-4 shrink-0 text-muted-foreground" />
+              <span class="min-w-0">
+                <span class="block text-sm font-medium">Same as last time</span>
+                <span class="block truncate text-xs text-muted-foreground">{lastActivity}</span>
+              </span>
+            </button>
+          {/if}
+          {#if rows.length > 0}
+            <div class="flex flex-col divide-y rounded-2xl border">
+              {#each rows as component (component.id)}
+                <label class="flex items-center gap-3 py-2 pr-2 pl-4">
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium">{component.name}</span>
+                    <span class="block text-xs text-muted-foreground">{unitPlural(component.unit)}</span>
+                  </span>
+                  <Input
+                    id="entry-amount-{component.id}"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    step="any"
+                    class="h-11 w-24 rounded-xl text-right text-lg font-semibold tabular-nums"
+                    bind:value={amounts[component.id]}
+                  />
+                </label>
+              {/each}
+            </div>
+          {/if}
+          {#if unpicked.length > 0 && rows.length > 0 && !choosing}
+            <button
+              type="button"
+              class="mt-2 flex w-fit items-center gap-1 rounded-full bg-secondary py-2 pr-3.5 pl-2.5 text-sm font-medium transition-colors hover:bg-accent"
+              onclick={() => (choosing = true)}
+            >
+              <PlusIcon class="size-3.5 text-muted-foreground" />
+              Add activity
+            </button>
+          {:else if unpicked.length > 0}
+            <div class="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Add an activity">
+              {#each unpicked as component (component.id)}
+                <button
+                  type="button"
+                  class="flex items-center gap-1 rounded-full bg-secondary py-2 pr-3.5 pl-2.5 text-sm font-medium transition-colors hover:bg-accent"
+                  onclick={() => pick(component.id)}
+                >
+                  <PlusIcon class="size-3.5 text-muted-foreground" />
+                  {component.name}
+                </button>
+              {/each}
+            </div>
           {/if}
         </fieldset>
-
-        <div class="flex flex-col gap-2">
-          <Label for="entry-amount">Amount{selected ? ` (${unitPlural(selected.unit)})` : ''}</Label>
-          <Input
-            id="entry-amount"
-            type="number"
-            inputmode="decimal"
-            min="0"
-            step="any"
-            placeholder="How many?"
-            class="h-14 rounded-2xl text-2xl font-semibold tabular-nums placeholder:text-lg placeholder:font-normal"
-            bind:value={amount}
-            required
-          />
-        </div>
 
         <div class="flex min-w-0 flex-col gap-2">
           <Label for="entry-when">When</Label>

@@ -1,17 +1,18 @@
 <script lang="ts">
-  import { formatAmount } from '$shared/units'
+  import { describeActivity } from '$shared/units'
   import MessageCircleIcon from '@lucide/svelte/icons/message-circle'
   import type { Component, Entry, Member } from '$shared/api'
-  import { formatDateTime, formatNumber, formatTime, formatWhen, memberLabel } from '$lib/format'
+  import { activityLines, formatDateTime, formatTime, formatWhen, memberLabel } from '$lib/format'
   import { cn } from '$lib/utils'
+  import EntryAmounts from './EntryAmounts.svelte'
   import ReactionBar from './ReactionBar.svelte'
   import UserAvatar from './UserAvatar.svelte'
 
   const INLINE_COMMENTS = 2
 
-  let { entry, component, goalId, userId, membersById, now, showComments = false, compact = false, timeZone, onOpen }: {
+  let { entry, componentsById, goalId, userId, membersById, now, showComments = false, compact = false, timeZone, onOpen }: {
     entry: Entry
-    component: Component | undefined
+    componentsById: Map<string, Component>
     goalId: string
     userId: string
     membersById: Map<string, Member>
@@ -27,7 +28,7 @@
   const authorName = (id: string) => memberLabel(membersById, id, userId)
   const shownComments = $derived(entry.comments.slice(-INLINE_COMMENTS))
 
-  const amountText = $derived(component ? formatAmount(entry.amount, component.unit) : formatNumber(entry.amount))
+  const lines = $derived(activityLines(entry.amounts, componentsById))
 </script>
 
 <article class="flex gap-3">
@@ -36,15 +37,14 @@
     <button
       type="button"
       class="-mx-2 -my-1 block w-[calc(100%+1rem)] rounded-xl px-2 py-1 text-left transition-colors hover:bg-accent"
-      aria-label="Open {isMine ? 'your' : `${authorName(entry.userId)}'s`} {amountText} {component?.name}, {formatDateTime(entry.occurredAt)}"
+      aria-label="Open {isMine ? 'your' : `${authorName(entry.userId)}'s`} {describeActivity(lines)}, {formatDateTime(entry.occurredAt)}"
       onclick={() => onOpen(false)}
     >
       <span class="flex items-baseline justify-between gap-3">
         <span class="min-w-0 text-sm">
           <span class="font-medium">{authorName(entry.userId)}</span>
           <span class="text-muted-foreground">logged</span>
-          <span class="tabular font-semibold">{amountText}</span>
-          <span class="text-muted-foreground">{component?.name.toLowerCase()}</span>
+          <EntryAmounts {lines} />
         </span>
         <time class="shrink-0 text-xs text-muted-foreground" datetime={new Date(entry.occurredAt).toISOString()}>
           {timeZone ? formatTime(entry.occurredAt, timeZone) : formatWhen(entry.occurredAt, now)}

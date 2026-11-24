@@ -170,7 +170,7 @@
   <BottomNav items={navItems} active={tab} {canLog} onLog={() => openLog()} />
 
   {#if currentGoal.data}
-    <EntryDrawer bind:open={drawerOpen} goal={currentGoal.data} {today} entry={editingEntry} />
+    <EntryDrawer bind:open={drawerOpen} goal={currentGoal.data} {today} entry={editingEntry} userId={user.id} />
   {/if}
   {#if group.data && viewedGoal.data}
     <EntryThreadDrawer

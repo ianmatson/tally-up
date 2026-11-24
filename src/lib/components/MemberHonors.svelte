@@ -24,7 +24,7 @@
       : [],
   )
   const earned = $derived(new Set(group.earnedTitles?.filter((t) => t.userId === member.id).map((t) => t.titleId)))
-  const streak = $derived(currentStreak(goal?.entries.filter((e) => e.userId === member.id && e.amount > 0 && e.date >= goal.startDate && e.date <= goal.endDate).map((e) => e.date) ?? [], today))
+  const streak = $derived(currentStreak(goal?.entries.filter((e) => e.userId === member.id && e.date >= goal.startDate && e.date <= goal.endDate).map((e) => e.date) ?? [], today))
   const next = $derived(TITLES.find((t) => !earned.has(t.id)))
   const equip = createMutation(() => ({
     mutationFn: (titleId: TitleId) => api(`/groups/${group.id}/title`, { method: 'PUT', body: { titleId } }),

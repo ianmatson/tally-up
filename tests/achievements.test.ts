@@ -15,8 +15,9 @@ const refresh = (goal = 'goal') => {
 const titles = (user = 'a') => db.prepare('SELECT title_id FROM group_earned_titles WHERE user_id = ? ORDER BY title_id').all(user).map((r) => r.title_id)
 function log(user = 'a', amount = 10, date = '2026-11-23', component = 'push', goal = 'goal') {
   const id = `entry-${++sequence}`
-  db.prepare('INSERT INTO entries (id, goal_id, component_id, user_id, amount, date, created_at, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, goal, component, user, amount, date, sequence, Date.parse(date))
+  db.prepare('INSERT INTO entries (id, goal_id, user_id, date, created_at, occurred_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, goal, user, date, sequence, Date.parse(date))
+  db.prepare('INSERT INTO entry_amounts (entry_id, component_id, amount) VALUES (?, ?, ?)').run(id, component, amount)
   refresh(goal)
   return id
 }

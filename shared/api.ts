@@ -55,11 +55,15 @@ export type Component = {
   period: ComponentPeriod
 }
 
+export type EntryAmount = {
+  componentId: string
+  amount: number
+}
+
 export type Entry = {
   id: string
-  componentId: string
   userId: string
-  amount: number
+  amounts: EntryAmount[]
   date: string
   note: string | null
   occurredAt: number
@@ -123,8 +127,7 @@ export type GoalInput = {
 }
 
 export type EntryInput = {
-  componentId: string
-  amount: number
+  amounts: EntryAmount[]
   occurredAt: number
   note: string | null
 }

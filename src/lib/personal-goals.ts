@@ -1,6 +1,6 @@
 import type { Component, ComponentPeriod, GoalDetail, GroupDetail } from '$shared/api'
 import { addDays, dateMs, daysBetween, msUntil, todayIn } from '$shared/dates'
-import { goalProgress } from './progress'
+import { entryLines, goalProgress } from './progress'
 
 const FLOAT_PRECISION = 1e6
 const WHOLE_UNIT_FROM = 10
@@ -27,13 +27,14 @@ export function personalGoals(group: GroupDetail, goal: GoalDetail, userId: stri
   if (goal.archived || !group.members.some((m) => m.id === userId) || today < goal.startDate || today > goal.endDate) return []
 
   const progress = goalProgress(goal, group.timezone, now)
+  const mine = entryLines(goal.entries).filter((e) => e.userId === userId && e.date >= goal.startDate && e.date <= today)
   return progress.components.flatMap(({ component, neededPerDay }) => {
     const { start, days } = periodRange(component.period, today)
     const target = roundUp(clean((neededPerDay / group.members.length) * days))
     if (target === 0) return []
     const logged = clean(
-      goal.entries
-        .filter((e) => e.userId === userId && e.componentId === component.id && e.date >= start && e.date >= goal.startDate && e.date <= today)
+      mine
+        .filter((e) => e.componentId === component.id && e.date >= start)
         .reduce((sum, e) => sum + e.amount, 0),
     )
     const remaining = clean(Math.max(0, target - logged))

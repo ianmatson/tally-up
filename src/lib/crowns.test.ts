@@ -10,8 +10,7 @@ let nextId = 0
 const entry = (userId: string, componentId: string, amount: number, date: string): Entry => ({
   id: String(nextId++),
   userId,
-  componentId,
-  amount,
+  amounts: [{ componentId, amount }],
   date,
   note: null,
   occurredAt: 0,

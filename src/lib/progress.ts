@@ -1,4 +1,4 @@
-import type { Component, Entry, GoalDetail, Member } from '$shared/api'
+import type { Component, Entry, EntryAmount, GoalDetail, Member } from '$shared/api'
 import { addDays, DAY_MS, dateMs, daysBetween, lastLoggableDate, todayIn, wallClockMs } from '$shared/dates'
 
 const RECENT_DAYS = 7
@@ -17,7 +17,12 @@ export function periodRange(goal: Pick<GoalDetail, 'startDate' | 'endDate'>, tod
   return { start, end }
 }
 
-export function entriesInPeriod<E extends Entry>(
+export type EntryLine = Omit<Entry, 'amounts'> & EntryAmount
+
+export const entryLines = (entries: Entry[]): EntryLine[] =>
+  entries.flatMap(({ amounts, ...entry }) => amounts.map((line) => ({ ...entry, ...line })))
+
+export function entriesInPeriod<E extends { date: string }>(
   goal: Pick<GoalDetail, 'startDate' | 'endDate'> & { entries: E[] },
   today: string,
   period: Period,
@@ -33,7 +38,7 @@ export function dateRange(start: string, end: string): string[] {
   return days
 }
 
-export function cumulativeByMember<E extends Entry>(
+export function cumulativeByMember<E extends { userId: string; date: string }>(
   members: Member[],
   entries: E[],
   days: string[],
@@ -57,30 +62,30 @@ export function componentShares(components: Component[]): Map<string, number> {
   return new Map(components.map((c) => [c.id, totalWeight > 0 ? c.weight / totalWeight : 0]))
 }
 
-export type CreditedEntry = Entry & { contribution: number }
+export type CreditedEntry = EntryLine & { contribution: number }
 
-const chronologically = (a: Entry, b: Entry) =>
+const chronologically = (a: EntryLine, b: EntryLine) =>
   a.date.localeCompare(b.date) || a.occurredAt - b.occurredAt || a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 
 type GoalWindow = Pick<GoalDetail, 'startDate' | 'endDate'>
-const inWindow = (goal: GoalWindow, entry: Entry) => entry.date >= goal.startDate && entry.date <= goal.endDate
+const inWindow = (goal: GoalWindow, entry: { date: string }) => entry.date >= goal.startDate && entry.date <= goal.endDate
 
 export function creditEntries(goal: GoalWindow & Pick<GoalDetail, 'components' | 'entries'>): CreditedEntry[] {
   const { components, entries } = goal
   const shares = componentShares(components)
   const targets = new Map(components.map((c) => [c.id, c.target]))
   const loggedSoFar = new Map<string, number>()
-  const contributions = new Map<string, number>()
-  const counted = entries.filter((e) => inWindow(goal, e))
+  const contributions = new Map<EntryLine, number>()
+  const counted = entryLines(entries).filter((e) => inWindow(goal, e))
   for (const entry of [...counted].sort(chronologically)) {
     const target = targets.get(entry.componentId)
     if (target === undefined) continue
     const before = loggedSoFar.get(entry.componentId) ?? 0
     loggedSoFar.set(entry.componentId, before + entry.amount)
     const counted = Math.max(0, Math.min(entry.amount, target - before))
-    contributions.set(entry.id, (counted / target) * shares.get(entry.componentId)!)
+    contributions.set(entry, (counted / target) * shares.get(entry.componentId)!)
   }
-  return counted.map((entry) => ({ ...entry, contribution: contributions.get(entry.id) ?? 0 }))
+  return counted.map((entry) => ({ ...entry, contribution: contributions.get(entry) ?? 0 }))
 }
 
 export type ComponentProgress = {
@@ -110,7 +115,7 @@ const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
 
 function totalsByComponent(goal: GoalWindow & { entries: Entry[] }): Map<string, number> {
   const totals = new Map<string, number>()
-  for (const entry of goal.entries.filter((e) => inWindow(goal, e))) totals.set(entry.componentId, (totals.get(entry.componentId) ?? 0) + entry.amount)
+  for (const entry of entryLines(goal.entries).filter((e) => inWindow(goal, e))) totals.set(entry.componentId, (totals.get(entry.componentId) ?? 0) + entry.amount)
   for (const [id, total] of totals) totals.set(id, Math.round(total * FLOAT_PRECISION) / FLOAT_PRECISION)
   return totals
 }
@@ -162,7 +167,7 @@ export function dailyGroupProgress(goal: Pick<GoalDetail, 'startDate' | 'endDate
   const days = dateRange(goal.startDate, lastLoggableDate(goal.endDate, today))
   const shares = componentShares(goal.components)
   const loggedByDay = new Map(days.map((day) => [day, new Map<string, number>()]))
-  for (const entry of goal.entries) {
+  for (const entry of entryLines(goal.entries)) {
     const day = loggedByDay.get(entry.date)
     if (day && shares.has(entry.componentId)) day.set(entry.componentId, (day.get(entry.componentId) ?? 0) + entry.amount)
   }

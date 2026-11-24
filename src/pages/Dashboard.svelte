@@ -204,7 +204,7 @@
               <li class="py-3 first:pt-0 last:pb-0">
                 <ActivityItem
                   {entry}
-                  component={componentsById.get(entry.componentId)}
+                  {componentsById}
                   goalId={goal.id}
                   userId={user.id}
                   {membersById}

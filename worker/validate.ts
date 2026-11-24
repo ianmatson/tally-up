@@ -101,10 +101,15 @@ export function parseGoal(value: unknown): GoalInput {
 export function parseEntry(value: unknown): EntryInput {
   const body = asBody(value)
   const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, LIMITS.note) : null
-  if (typeof body.componentId !== 'string') badRequest('Choose what you did')
+  if (!Array.isArray(body.amounts) || body.amounts.length < 1 || body.amounts.length > LIMITS.components) badRequest('Enter an amount')
+  const amounts = body.amounts.map((value) => {
+    const line = asBody(value)
+    if (typeof line.componentId !== 'string') badRequest('Choose what you did')
+    return { componentId: line.componentId, amount: positiveNumber(line.amount, 'Amount', LIMITS.amount) }
+  })
+  if (new Set(amounts.map((line) => line.componentId)).size !== amounts.length) badRequest('Enter each activity once')
   return {
-    componentId: body.componentId,
-    amount: positiveNumber(body.amount, 'Amount', LIMITS.amount),
+    amounts,
     occurredAt: timestamp(body.occurredAt, 'Time'),
     note,
   }
