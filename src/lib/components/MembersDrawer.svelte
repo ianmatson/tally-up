@@ -99,7 +99,7 @@
   title={lastMember ? `Delete ${group.name}?` : `Leave ${group.name}?`}
   description={lastMember
     ? 'You are the only member, so leaving deletes the group and all of its goals.'
-    : 'This deletes everything you logged, commented and reacted in this group. You can join again with an invite link.'}
+    : 'This deletes everything you logged, commented and reacted in this group. If everyone else has left, the group is deleted too.'}
   confirmLabel={lastMember ? 'Delete group' : 'Leave group'}
   onConfirm={() => leave.mutate()}
 />

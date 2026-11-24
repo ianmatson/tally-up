@@ -65,4 +65,23 @@ describe('group admins', () => {
     expect(roles('theirs')).toEqual({ b: 'admin' })
     expect(db.prepare('SELECT id FROM groups ORDER BY id').all().map((r) => r.id)).toEqual(['shared', 'theirs'])
   })
+
+  it('refuses any change that would leave a group without an admin', () => {
+    addGroup('g', 'a', ['a', 'b'])
+    expect(() => db.exec("UPDATE memberships SET role = 'member' WHERE user_id = 'a'")).toThrow('A group needs at least one admin')
+    expect(() => run(REMOVE_MEMBER_SQL, 'a', 'g')).toThrow('A group needs at least one admin')
+    expect(roles('g')).toEqual({ a: 'admin', b: 'member' })
+  })
+
+  it('makes a new owner an admin, as the previous release did on account deletion', () => {
+    addGroup('g', 'a', ['a', 'b'])
+    db.exec("UPDATE groups SET owner_id = 'b'")
+    expect(roles('g')).toEqual({ a: 'admin', b: 'admin' })
+  })
+
+  it('still deletes a whole group with several members', () => {
+    addGroup('g', 'a', ['a', 'b', 'c'])
+    db.exec("DELETE FROM groups WHERE id = 'g'")
+    expect(db.prepare('SELECT COUNT(*) AS n FROM memberships').get()?.n).toBe(0)
+  })
 })
