@@ -82,6 +82,19 @@ export const formatNumberDown = (n: number) => {
   return formatNumber(Math.floor(Math.round(n * step * DISPLAY_PRECISION) / DISPLAY_PRECISION) / step)
 }
 
+const MINUTE_MS = 60_000
+const MINUTES_PER_HOUR = 60
+const MINUTES_PER_DAY = 1440
+
+export function formatCountdown(ms: number): string {
+  const minutes = Math.max(1, Math.ceil(ms / MINUTE_MS))
+  const days = Math.floor(minutes / MINUTES_PER_DAY)
+  const hours = Math.floor((minutes % MINUTES_PER_DAY) / MINUTES_PER_HOUR)
+  if (days) return `${days}d ${hours}h`
+  if (hours) return `${hours}h ${minutes % MINUTES_PER_HOUR}m`
+  return `${minutes}m`
+}
+
 export const formatTime = (timestamp: number, timeZone: string) =>
   new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone }).format(timestamp)
 const localWeekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' })

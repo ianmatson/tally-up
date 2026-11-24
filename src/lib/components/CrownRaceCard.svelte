@@ -3,15 +3,16 @@
   import type { GoalDetail, Member } from '$shared/api'
   import { formatAmount } from '$shared/units'
   import { type Standing, todaysStandings } from '$lib/crowns'
-  import { formatShare, memberLabel } from '$lib/format'
+  import { formatCountdown, formatShare, memberLabel } from '$lib/format'
   import { componentShares, type GoalProgress } from '$lib/progress'
   import { cn } from '$lib/utils'
 
-  let { goal, progress, membersById, userId }: {
+  let { goal, progress, membersById, userId, msLeft }: {
     goal: GoalDetail
     progress: GoalProgress
     membersById: Map<string, Member>
     userId: string
+    msLeft: number
   } = $props()
 
   const standings = $derived(todaysStandings(goal, progress.today))
@@ -40,8 +41,11 @@
 </script>
 
 <section class="rise-in rounded-card bg-card p-4 [animation-delay:120ms] sm:p-5" aria-labelledby="crown-race-heading">
-  <h2 id="crown-race-heading" class="font-semibold tracking-tight">Today's crowns</h2>
-  <p class="mt-1 text-xs text-muted-foreground">Lead at midnight to win. Ties win nothing.</p>
+  <div class="flex items-center justify-between gap-3">
+    <h2 id="crown-race-heading" class="font-semibold tracking-tight">Today's crowns</h2>
+    <span class="tabular shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">Closes in {formatCountdown(msLeft)}</span>
+  </div>
+  <p class="mt-1 text-xs text-muted-foreground">Whoever leads when the timer ends wins. Ties win nothing.</p>
   <ul class="mt-2 divide-y">
     {#each rows as row (row.id)}
       {@const mine = row.standing.userIds.length === 1 && row.standing.userIds[0] === userId}

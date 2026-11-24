@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Member } from '$shared/api'
-import { formatNumberDown, memberLabel } from './format'
+import { formatCountdown, formatNumberDown, memberLabel } from './format'
 
 const member = (id: string, name: string): Member => ({ id, name, avatarUrl: null, joinedAt: 0 })
 
@@ -19,5 +19,12 @@ describe('memberLabel', () => {
 describe('formatNumberDown', () => {
   it('never rounds an amount up to a target it has not reached', () => {
     expect([1.06, 2.3, 0.7, 234.6, 99.99].map(formatNumberDown)).toEqual(['1', '2.3', '0.7', '234', '99.9'])
+  })
+})
+
+describe('formatCountdown', () => {
+  it('shows days and hours, hours and minutes, or minutes, rounding up', () => {
+    const minutes = (n: number) => n * 60_000
+    expect([minutes(3 * 1440 + 125), minutes(312), minutes(42), 1].map(formatCountdown)).toEqual(['3d 2h', '5h 12m', '42m', '1m'])
   })
 })

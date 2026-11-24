@@ -22,6 +22,8 @@ export function wallClockMs(timeZone: string, now = new Date()): number {
   return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
 }
 
+export const msUntil = (date: string, timeZone: string, now = new Date()) => dateMs(date) - wallClockMs(timeZone, now)
+
 export function dateMs(date: string): number {
   const [y, m, d] = date.split('-').map(Number)
   return Date.UTC(y, m - 1, d)

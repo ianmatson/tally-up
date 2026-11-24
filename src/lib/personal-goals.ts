@@ -1,5 +1,5 @@
 import type { Component, ComponentPeriod, GoalDetail, GroupDetail } from '$shared/api'
-import { addDays, dateMs, daysBetween, todayIn } from '$shared/dates'
+import { addDays, dateMs, daysBetween, msUntil, todayIn } from '$shared/dates'
 import { goalProgress } from './progress'
 
 const FLOAT_PRECISION = 1e6
@@ -20,7 +20,7 @@ function periodRange(period: ComponentPeriod, today: string): { start: string; d
   return { start, days: daysBetween(start, nextMonth) }
 }
 
-export type PersonalGoal = { component: Component; period: string; target: number; logged: number; remaining: number; done: boolean }
+export type PersonalGoal = { component: Component; period: string; target: number; logged: number; remaining: number; done: boolean; msLeft: number }
 
 export function personalGoals(group: GroupDetail, goal: GoalDetail, userId: string, now: Date): PersonalGoal[] {
   const today = todayIn(group.timezone, now)
@@ -37,6 +37,8 @@ export function personalGoals(group: GroupDetail, goal: GoalDetail, userId: stri
         .reduce((sum, e) => sum + e.amount, 0),
     )
     const remaining = clean(Math.max(0, target - logged))
-    return [{ component, period: PERIOD_LABELS[component.period], target, logged, remaining, done: remaining === 0 }]
+    const end = [addDays(start, days), addDays(goal.endDate, 1)].sort()[0]
+    const msLeft = msUntil(end, group.timezone, now)
+    return [{ component, period: PERIOD_LABELS[component.period], target, logged, remaining, done: remaining === 0, msLeft }]
   })
 }
