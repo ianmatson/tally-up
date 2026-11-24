@@ -67,6 +67,12 @@
 
   const endHold = () => clearTimeout(holdTimer)
 
+  function keyReaction(event: KeyboardEvent, emoji: string) {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    if (!event.repeat) react(emoji)
+  }
+
   function moveHold(event: PointerEvent) {
     if (Math.hypot(event.clientX - holdStart.x, event.clientY - holdStart.y) > HOLD_SLOP_PX) endHold()
   }
@@ -96,6 +102,7 @@
         onpointerleave={endHold}
         onpointercancel={endHold}
         oncontextmenu={(event) => event.preventDefault()}
+        onkeydown={(event) => keyReaction(event, reaction.emoji)}
         onclick={(event) => tapReaction(event, reaction.emoji)}
       >
         <span class="text-[0.95rem] leading-none">{reaction.emoji}</span>
