@@ -176,7 +176,9 @@
             </div>
             <div class="shrink-0 text-right">
               <div class="tabular font-semibold">{selectedComponent ? formatNumber(row.value) : formatShare(row.value)}</div>
-              <div class="text-xs text-muted-foreground">{selectedComponent ? unitFor(selectedComponent.unit, row.value) : 'of goal'} · {formatPercent(row.share)}</div>
+              {#if selectedComponent}
+                <div class="text-xs text-muted-foreground">{unitFor(selectedComponent.unit, row.value)} · {formatPercent(row.share)}</div>
+              {/if}
             </div>
             <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
           </button>
