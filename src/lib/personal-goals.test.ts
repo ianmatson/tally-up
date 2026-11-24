@@ -25,7 +25,7 @@ const remaining = (entries: Entry[], time = now) => personalGoals(group, { ...go
 
 describe('DG personal goals', () => {
   it('uses the remaining group pace and extrapolates running to seven days', () => {
-    expect(remaining([])).toEqual([350, 350, 49, 700])
+    expect(remaining([])).toEqual([350, 350, 700, 49])
   })
   it('subtracts only personal logs in the current day or Monday-based week', () => {
     expect(remaining([
@@ -33,15 +33,15 @@ describe('DG personal goals', () => {
       entry('p', 1000, '2026-11-25', 'b'),
       entry('m', 2.25, '2026-11-23'), entry('m', 1, '2026-11-22'),
       entry('q', 120, '2026-11-25'),
-    ])).toEqual([140, 350, 44, 565])
+    ])).toEqual([140, 350, 565, 44])
   })
   it('resets at group midnight and Monday without carrying surplus or debt', () => {
     const entries = [entry('p', 70, '2026-11-22'), entry('m', 10, '2026-11-22')]
-    expect(remaining(entries, new Date('2026-11-23T05:59:00Z'))).toEqual([125, 200, 13, 400])
-    expect(remaining(entries, new Date('2026-11-23T06:00:00Z'))).toEqual([228, 234, 26.9, 467])
+    expect(remaining(entries, new Date('2026-11-23T05:59:00Z'))).toEqual([125, 200, 400, 13])
+    expect(remaining(entries, new Date('2026-11-23T06:00:00Z'))).toEqual([228, 234, 467, 26.9])
   })
   it('updates personal targets when other members change the group pace', () => {
-    expect(remaining([entry('p', 2700, '2026-11-24', 'b')])).toEqual([13, 350, 49, 700])
+    expect(remaining([entry('p', 2700, '2026-11-24', 'b')])).toEqual([13, 350, 700, 49])
   })
   it('shows eight pushups left after 50 when the group pace is 57.8 per day', () => {
     const sixMembers = { ...group, members: Array.from({ length: 6 }, (_, i) => ({ ...group.members[0], id: i === 0 ? 'a' : String(i) })) }
