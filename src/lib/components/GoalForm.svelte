@@ -94,6 +94,7 @@
   let dragKey = $state<string | null>(null)
   let dragOffset = $state(0)
   let dragOrigin = 0
+  let dragPointer = -1
 
   function moveRow(from: number, to: number) {
     const [row] = rows.splice(from, 1)
@@ -101,23 +102,27 @@
   }
 
   function startDrag(event: PointerEvent & { currentTarget: HTMLElement }, row: Row) {
+    if (dragKey) return
     event.currentTarget.setPointerCapture(event.pointerId)
+    dragPointer = event.pointerId
     dragKey = row.key
     dragOrigin = event.clientY
     dragOffset = 0
   }
 
   function drag(event: PointerEvent) {
-    if (!dragKey) return
+    if (!dragKey || event.pointerId !== dragPointer) return
     const index = rows.findIndex((row) => row.key === dragKey)
     const elements = [...list.querySelectorAll<HTMLElement>('[data-row]')]
     const [previous, current, next] = [elements[index - 1], elements[index], elements[index + 1]]
     const offset = event.clientY - dragOrigin
-    if (next && offset > next.offsetHeight / 2) {
-      dragOrigin += next.offsetTop + next.offsetHeight - (current.offsetTop + current.offsetHeight)
+    const down = next ? next.offsetTop + next.offsetHeight - (current.offsetTop + current.offsetHeight) : 0
+    const up = previous ? current.offsetTop - previous.offsetTop : 0
+    if (next && offset > down / 2) {
+      dragOrigin += down
       moveRow(index, index + 1)
-    } else if (previous && offset < -previous.offsetHeight / 2) {
-      dragOrigin += previous.offsetTop - current.offsetTop
+    } else if (previous && offset < -up / 2) {
+      dragOrigin -= up
       moveRow(index, index - 1)
     } else {
       const [first, last] = [elements[0], elements.at(-1)!]
@@ -129,7 +134,9 @@
     dragOffset = event.clientY - dragOrigin
   }
 
-  function endDrag() {
+  function endDrag(event: PointerEvent) {
+    if (event.pointerId !== dragPointer) return
+    dragPointer = -1
     dragKey = null
     dragOffset = 0
   }
@@ -212,6 +219,7 @@
                 onpointermove={drag}
                 onpointerup={endDrag}
                 onpointercancel={endDrag}
+              onlostpointercapture={endDrag}
                 onkeydown={(event) => nudge(event, index)}
               >
                 <GripVerticalIcon class="size-4" />
