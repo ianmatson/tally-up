@@ -81,17 +81,17 @@
   })
 
   const componentsById = $derived(new Map(goal.components.map((c) => [c.id, c])))
+  const lastEntry = $derived(entry ? null : (goal.entries.find((e) => e.userId === userId) ?? null))
+  const lastActivity = $derived(lastEntry && describeActivity(activityLines(lastEntry.amounts, componentsById)))
+  const showAll = $derived(goal.components.length <= MAX_ALL_ROWS)
+  const rows = $derived(showAll ? goal.components : goal.components.filter((c) => picked.includes(c.id)))
+  const unpicked = $derived(showAll ? [] : goal.components.filter((c) => !picked.includes(c.id)))
   const lines = $derived(
     rows.flatMap((c) => {
       const amount = amounts[c.id] ?? 0
       return amount > 0 ? [{ componentId: c.id, amount }] : []
     }),
   )
-  const lastEntry = $derived(entry ? null : (goal.entries.find((e) => e.userId === userId) ?? null))
-  const lastActivity = $derived(lastEntry && describeActivity(activityLines(lastEntry.amounts, componentsById)))
-  const showAll = $derived(goal.components.length <= MAX_ALL_ROWS)
-  const rows = $derived(showAll ? goal.components : goal.components.filter((c) => picked.includes(c.id)))
-  const unpicked = $derived(showAll ? [] : goal.components.filter((c) => !picked.includes(c.id)))
   const canSave = $derived(lines.length > 0 && !!when && !preparingPhoto)
   const newPhotoUrl = $derived(photo ? URL.createObjectURL(photo) : null)
   const photoUrl = $derived(photo === undefined ? (entry?.photoUrl ?? null) : newPhotoUrl)
