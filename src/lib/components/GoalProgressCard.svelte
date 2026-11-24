@@ -68,7 +68,8 @@
   function track(event: PointerEvent & { currentTarget: SVGSVGElement }) {
     if (lastIndex < 0) return
     const ratio = (event.clientX - event.currentTarget.getBoundingClientRect().left - PAD.left) / plotWidth
-    hover = Math.min(lastIndex, Math.max(0, Math.round(ratio * progress.totalDays) - 1))
+    const day = ratio * progress.totalDays
+    hover = values.reduce((nearest, _, i) => (Math.abs(dayEnd(i) - day) < Math.abs(dayEnd(nearest) - day) ? i : nearest), 0)
   }
 
   function onKeydown(event: KeyboardEvent) {
@@ -87,18 +88,10 @@
         {#if progress.complete}<TallyGlyph class="size-8" draw />{/if}
       </div>
     </div>
-    {#if progress.phase === 'active'}
-      <span class="mt-0.5 flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
-        <span class="size-1.5 rounded-full bg-current"></span>
-        {progress.daysLeft === 1 ? 'Last day' : `${progress.daysLeft} days left`}
-      </span>
-    {/if}
-  </div>
-  <p class="mt-2.5">
-    <span class={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-medium', status.ahead ? 'bg-highlight text-highlight-foreground' : 'bg-secondary')}>
+    <span class={cn('mt-0.5 shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', status.ahead ? 'bg-highlight text-highlight-foreground' : 'bg-secondary')}>
       {status.label}
     </span>
-  </p>
+  </div>
 
   <div class="relative mt-4" bind:clientWidth={width}>
     {#if width > 0}
