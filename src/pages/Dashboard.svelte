@@ -148,8 +148,10 @@
             <ul class="mt-3 divide-y">
               {#each personalTargets as target (target.label)}
                 <li class="flex items-baseline gap-2 py-3">
-                  <span class="tabular text-2xl font-semibold tracking-tight" class:text-highlight={target.remaining === 0}>{formatNumber(target.remaining)}</span>
-                  <span class="text-sm">{target.label} <span class="text-muted-foreground">left {target.period}</span></span>
+                  <span class="tabular text-2xl font-semibold tracking-tight">
+                    <span class:text-highlight={target.remaining === 0}>{formatNumber(target.logged)}</span><span class="ml-1 text-lg font-medium text-muted-foreground">/ {formatNumber(target.target)}</span>
+                  </span>
+                  <span class="text-sm">{target.label} <span class="text-muted-foreground">{target.period}</span></span>
                 </li>
               {/each}
             </ul>

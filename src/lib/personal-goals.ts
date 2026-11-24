@@ -37,7 +37,8 @@ export function personalGoals(group: GroupDetail, goal: GoalDetail, userId: stri
         && e.date >= start && e.date >= goal.startDate && e.date <= today)
       .reduce((sum, e) => sum + e.amount, 0)
     const remaining = Math.max(0, Math.round((target - logged) * 1e6) / 1e6)
+    const roundUp = (n: number) => (activity.weekly ? Math.ceil(n * 10) / 10 : Math.ceil(n))
     return [{ position: goal.components.indexOf(components[0]), label: activity.label, period: activity.weekly ? 'this week' : 'today',
-      target, logged, remaining: activity.weekly ? Math.ceil(remaining * 10) / 10 : Math.ceil(remaining) }]
-  }).sort((a, b) => a.position - b.position)
+      target: roundUp(target), logged, remaining: roundUp(remaining) }]
+  }).filter((t) => t.target > 0).sort((a, b) => a.position - b.position)
 }

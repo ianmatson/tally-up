@@ -43,14 +43,17 @@ describe('DG personal goals', () => {
   it('updates personal targets when other members change the group pace', () => {
     expect(remaining([entry('p', 2700, '2026-11-24', 'b')])).toEqual([13, 350, 49, 700])
   })
-  it('shows eight pushups left after 50 when the group pace is 57.8 per day', () => {
+  it('shows 50 of 58 pushups, eight left, when the group pace is 57.8 per day', () => {
     const sixMembers = { ...group, members: Array.from({ length: 6 }, (_, i) => ({ ...group.members[0], id: i === 0 ? 'a' : String(i) })) }
     const screenshotGoal = { ...goal, startDate: '2026-11-25', endDate: '2027-01-02',
       components: [{ ...goal.components[0], target: 13650 }],
       entries: [entry('p', 50, '2026-11-25'), entry('p', 70, '2026-11-25', 'b')] }
     const [target] = personalGoals(sixMembers, screenshotGoal, 'a', now)
-    expect(target.target).toBeCloseTo(57.8205128)
-    expect(target.remaining).toBe(8)
+    expect([target.logged, target.target, target.remaining]).toEqual([50, 58, 8])
+  })
+  it('leaves out activities the group has already finished', () => {
+    const labels = personalGoals(group, { ...goal, entries: [entry('p', 2800, '2026-11-24', 'b')] }, 'a', now).map((t) => t.label)
+    expect(labels).toEqual(['situps', 'miles', 'squats'])
   })
   it("lists activities in the goal's saved component order", () => {
     const reordered = { ...goal, components: [goal.components[2], goal.components[0], goal.components[3], goal.components[1]] }
