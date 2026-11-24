@@ -24,6 +24,7 @@
     periodRange,
     rankBy,
   } from '$lib/progress'
+  import { expand } from '$lib/motion'
   import { cn } from '$lib/utils'
 
   const OVERALL = 'overall'
@@ -180,18 +181,20 @@
             <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
           </button>
           {#if isOpen}
-            <dl class="mx-3 mb-3 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 rounded-[14px] bg-secondary/60 px-4 py-3 text-sm">
-              {#each goal.components as component (component.id)}
-                {@const part = row.item.byComponent[component.id]}
-                {@const total = componentTotals[component.id]}
-                <dt class="truncate">{component.name}</dt>
-                <dd class="tabular text-right text-muted-foreground">
-                  {formatAmount(part.amount, component.unit)}{#if total > 0}&nbsp;·&nbsp;{formatPercent(part.amount / total)}{/if}
-                </dd>
-                <dd class="tabular text-right font-medium">{formatShare(part.contribution)}</dd>
-              {/each}
-            </dl>
-            <div class="mx-3 mb-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
+            <div class="pb-3" transition:expand>
+              <dl class="mx-3 mb-3 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 rounded-[14px] bg-secondary/60 px-4 py-3 text-sm">
+                {#each goal.components as component (component.id)}
+                  {@const part = row.item.byComponent[component.id]}
+                  {@const total = componentTotals[component.id]}
+                  <dt class="truncate">{component.name}</dt>
+                  <dd class="tabular text-right text-muted-foreground">
+                    {formatAmount(part.amount, component.unit)}{#if total > 0}&nbsp;·&nbsp;{formatPercent(part.amount / total)}{/if}
+                  </dd>
+                  <dd class="tabular text-right font-medium">{formatShare(part.contribution)}</dd>
+                {/each}
+              </dl>
+              <div class="mx-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
+            </div>
           {/if}
         </li>
       {/each}

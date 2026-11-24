@@ -8,6 +8,7 @@
   import TallyGlyph from '$lib/components/TallyGlyph.svelte'
   import { dayWord, formatDate, formatNumber, formatPercent, formatShare, roundDays } from '$lib/format'
   import { componentShares, dailyGroupProgress, type GoalProgress } from '$lib/progress'
+  import { expand } from '$lib/motion'
   import { cn } from '$lib/utils'
 
   let { goal, progress, memberCount, daysToStart }: {
@@ -128,9 +129,6 @@
         {#if values.length}
           <path d={area} fill="url(#goal-area)" class="goal-area" />
           <path d={line} pathLength="1" fill="none" stroke="var(--foreground)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="goal-line" />
-          {#if hover === null}
-            <circle cx={x(dayEnd(lastIndex))} cy={y(values[lastIndex])} r="9" fill="var(--highlight)" class="goal-pulse" />
-          {/if}
           <circle cx={x(dayEnd(index))} cy={y(values[index])} r="5" fill="var(--highlight)" stroke="var(--foreground)" stroke-width="2" />
         {/if}
 
@@ -168,7 +166,7 @@
     <ChevronDownIcon class={cn('size-4 text-muted-foreground transition-transform duration-200', showBreakdown && 'rotate-180')} />
   </button>
   {#if showBreakdown}
-    <ul class="mt-2 flex flex-col gap-4">
+    <ul class="flex flex-col gap-4 pt-2" transition:expand>
       {#each progress.components as item (item.component.id)}
         {@const done = item.total >= item.component.target}
         <li class="flex flex-col gap-2">
@@ -205,26 +203,9 @@
     animation: area-in 900ms var(--ease-out-quint) 200ms both;
   }
 
-  .goal-pulse {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: pulse 2.4s var(--ease-out-quint) 1.1s infinite;
-  }
-
   @keyframes area-in {
     from {
       opacity: 0;
-    }
-  }
-
-  @keyframes pulse {
-    0% {
-      opacity: 0.7;
-      transform: scale(0.4);
-    }
-    100% {
-      opacity: 0;
-      transform: scale(1.6);
     }
   }
 </style>
