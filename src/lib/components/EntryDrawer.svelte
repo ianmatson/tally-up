@@ -129,9 +129,9 @@
 <Drawer.Root bind:open autoFocus>
   <Drawer.Content>
     <form class="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col" onsubmit={submit}>
-      <Drawer.Header class="relative px-4 pt-3 pb-4">
-        <Drawer.Title class="pr-10 text-xl font-semibold tracking-tight">{entry ? 'Edit entry' : 'Log progress'}</Drawer.Title>
-        <Drawer.Description>{goal.name}</Drawer.Description>
+      <Drawer.Header class="relative h-4 p-0">
+        <Drawer.Title class="sr-only">{entry ? 'Edit entry' : 'Log progress'}</Drawer.Title>
+        <Drawer.Description class="sr-only">{goal.name}</Drawer.Description>
         <DrawerCloseButton />
       </Drawer.Header>
 
