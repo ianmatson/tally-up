@@ -277,7 +277,7 @@
 <ConfirmDialog
   bind:open={confirmDelete}
   title="Delete your account?"
-  description="This deletes your profile, everything you logged, and your comments and reactions. Groups you run move to the member who joined after you, and groups where you are the only member are deleted. You cannot undo this."
+  description="This deletes your profile, everything you logged, and your comments and reactions. In groups where you are the only admin, the longest-standing member becomes admin. Groups where you are the only member are deleted. You cannot undo this."
   confirmLabel="Delete account"
   onConfirm={removeAccount}
 />
