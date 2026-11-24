@@ -110,7 +110,7 @@ describe('DG-only titles', () => {
     expect(db.prepare(GROUP_TITLES_SQL).all('group')).toHaveLength(1)
     expect(db.prepare(EQUIP_TITLE_SQL).run('outside', 'a', 'initiate').changes).toBe(0)
     expect(db.prepare(EQUIP_TITLE_SQL).run('group', 'a', 'initiate').changes).toBe(1)
-    db.exec("DELETE FROM memberships WHERE group_id = 'group' AND user_id = 'a'")
+    db.exec("UPDATE memberships SET role = 'admin' WHERE group_id = 'group' AND user_id = 'b'; DELETE FROM memberships WHERE group_id = 'group' AND user_id = 'a'")
     expect(db.prepare(EQUIP_TITLE_SQL).run('group', 'a', 'initiate').changes).toBe(0)
   })
   it('keeps the restriction on the original group ID through renames and duplicate names', () => {
