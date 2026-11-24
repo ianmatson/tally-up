@@ -197,16 +197,15 @@ export function memberScores(members: Member[], components: Component[], entries
   return [...scores.values()]
 }
 
-export type Ranked<T> = { item: T; rank: number; value: number; share: number }
+export type Ranked<T> = { item: T; rank: number; value: number }
 
 export function rankBy<T extends { member: Member }>(items: T[], value: (item: T) => number): Ranked<T>[] {
-  const total = items.reduce((sum, item) => sum + value(item), 0)
   const sorted = [...items].sort((a, b) => value(b) - value(a) || a.member.name.localeCompare(b.member.name))
   const ranked: Ranked<T>[] = []
   sorted.forEach((item, i) => {
     const v = value(item)
     const tied = i > 0 && Math.abs(v - ranked[i - 1].value) < 1e-6
-    ranked.push({ item, value: v, rank: tied ? ranked[i - 1].rank : i + 1, share: total > 0 ? v / total : 0 })
+    ranked.push({ item, value: v, rank: tied ? ranked[i - 1].rank : i + 1 })
   })
   return ranked
 }
