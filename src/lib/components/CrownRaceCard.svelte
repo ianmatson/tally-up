@@ -25,12 +25,17 @@
     }),
   ])
 
-  function status({ userIds }: Standing, done: boolean): string {
-    if (done) return 'Target reached'
+  const listFormat = new Intl.ListFormat(undefined, { type: 'conjunction' })
+
+  function leaders({ userIds }: Standing): string {
     const names = userIds.map((id) => memberLabel(membersById, id, userId))
-    if (names.length === 0) return 'No logs yet'
     if (names.length === 1) return names[0] === 'You' ? 'You lead' : `${names[0]} leads`
-    return names.length === 2 ? `${names[0]} and ${names[1]} tied` : `${names.length} people tied`
+    return `${listFormat.format(names)} tied`
+  }
+
+  function status(standing: Standing, done: boolean): string {
+    if (standing.userIds.length === 0) return done ? 'Target reached' : 'No logs yet'
+    return done ? `${leaders(standing)} · target reached` : leaders(standing)
   }
 </script>
 
@@ -39,7 +44,6 @@
   <p class="mt-1 text-xs text-muted-foreground">Lead a category at midnight to take its crown. Ties earn none.</p>
   <ul class="mt-2 divide-y">
     {#each rows as row (row.id)}
-      {@const open = row.done || row.standing.userIds.length === 0}
       {@const mine = row.standing.userIds.length === 1 && row.standing.userIds[0] === userId}
       <li class="flex items-center gap-3 py-2.5">
         <span
@@ -50,9 +54,9 @@
         </span>
         <div class="min-w-0 flex-1 leading-tight">
           <div class="truncate text-sm font-medium">{row.name}</div>
-          <div class="truncate text-xs text-muted-foreground">{status(row.standing, row.done)}</div>
+          <div class="text-xs text-muted-foreground">{status(row.standing, row.done)}</div>
         </div>
-        {#if !open}<span class="tabular shrink-0 text-sm font-semibold">{row.value}</span>{/if}
+        {#if row.standing.userIds.length}<span class="tabular shrink-0 text-sm font-semibold">{row.value}</span>{/if}
       </li>
     {/each}
   </ul>
