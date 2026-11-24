@@ -5,11 +5,12 @@
 <script lang="ts">
   import { formatDate } from '$lib/format'
 
-  let { days, series, reference, format, label, focusId, highlightId }: {
+  let { days, series, reference, format, minScale, label, focusId, highlightId }: {
     days: string[]
     series: ChartSeries[]
     reference: number[] | null
     format: (n: number) => string
+    minScale: number
     label: string
     focusId: string | null
     highlightId: string
@@ -25,6 +26,7 @@
   const Y_TICKS = 4
   const TOOLTIP_ROWS = 6
 
+  const clipId = $props.id()
   let width = $state(0)
   let hover = $state<number | null>(null)
   let tooltipWidth = $state(0)
@@ -34,8 +36,10 @@
   const plotHeight = HEIGHT - PAD.top - PAD.bottom
   const last = $derived(days.length - 1)
 
-  const yMax = $derived(niceCeiling(Math.max(1, ...series.map((s) => s.values[last]), reference?.[last] ?? 0)))
-  const yTicks = $derived(Array.from({ length: Y_TICKS + 1 }, (_, i) => (yMax / Y_TICKS) * i))
+  const leader = $derived(Math.max(minScale, ...series.map((s) => s.values[last])))
+  const yStep = $derived(niceStep(leader / Y_TICKS))
+  const yMax = $derived(Math.ceil(leader / yStep) * yStep)
+  const yTicks = $derived(Array.from({ length: Math.round(yMax / yStep) + 1 }, (_, i) => yStep * i))
   const left = $derived(Math.ceil(Math.max(...yTicks.map((t) => format(t).length)) * TICK_CHAR_WIDTH + TICK_GAP))
   const plotWidth = $derived(Math.max(0, width - left - right))
   const xTicks = $derived([...new Set([0, Math.round(last / 2), last])])
@@ -68,9 +72,9 @@
 
   const ariaValueText = $derived(`${formatDate(days[index])}: ${rankedAt.map((s) => `${s.name} ${format(s.values[index])}`).join(', ')}`)
 
-  function niceCeiling(value: number): number {
+  function niceStep(value: number): number {
     const magnitude = 10 ** Math.floor(Math.log10(value))
-    return [1, 2, 2.5, 5, 10].find((m) => m * magnitude >= value)! * magnitude
+    return [1, 2, 5, 10].find((m) => m * magnitude >= value)! * magnitude
   }
 
   function track(event: PointerEvent & { currentTarget: SVGSVGElement }) {
@@ -118,8 +122,12 @@
         >
       {/each}
 
+      <clipPath id={clipId}>
+        <rect x={left} y={PAD.top} width={plotWidth} height={plotHeight} />
+      </clipPath>
+
       {#if reference}
-        <path d={path(reference)} fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7" />
+        <path d={path(reference)} clip-path="url(#{clipId})" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7" />
       {/if}
 
       {#each ordered as s (s.id)}
