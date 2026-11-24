@@ -2,49 +2,6 @@ import { TITLES } from '../shared/achievements'
 
 const TITLE_THRESHOLDS = TITLES.map((t) => `('${t.id}', ${t.days})`).join(', ')
 
-/** These statements run in the same D1 batch as the activity mutation.
- * Ranking and incumbent tie-breaking happen in SQL against current DB state,
- * rather than a read/compute/write cycle that could overwrite concurrent logs.
- */
-const MILE_UNITS = `'mi', 'mile', 'miles'`
-const KM_UNITS = `'km', 'kilometer', 'kilometers', 'kilometre', 'kilometres'`
-const METER_UNITS = `'m', 'meter', 'meters', 'metre', 'metres'`
-const REP_UNITS = `'rep', 'reps', 'repetition', 'repetitions', 'pushup', 'pushups', 'push-up', 'push-ups', 'squat', 'squats', 'situp', 'situps', 'sit-up', 'sit-ups'`
-
-const CROWN_TOTALS = `crown_totals AS (
-  WITH logged AS (
-    SELECT e.*, c.target, c.weight,
-      lower(replace(replace(replace(trim(c.name), '-', ''), ' ', ''), '_', '')) AS activity,
-      lower(trim(c.unit)) AS unit,
-      MAX(0, MIN(e.amount, c.target - (SUM(e.amount) OVER (PARTITION BY e.component_id
-        ORDER BY e.date, e.occurred_at, e.created_at, e.id ROWS UNBOUNDED PRECEDING) - e.amount))) AS counted
-    FROM entries e JOIN components c ON c.id = e.component_id
-    JOIN goals g ON g.id = e.goal_id
-    WHERE e.goal_id = ?1 AND e.amount > 0 AND e.date BETWEEN g.start_date AND g.end_date
-  ), activity AS (
-    SELECT logged.* FROM logged JOIN goals g ON g.id = logged.goal_id
-    JOIN memberships m ON m.group_id = g.group_id AND m.user_id = logged.user_id
-  ), goal_weight AS (SELECT SUM(weight) AS total FROM components WHERE goal_id = ?1),
-  totals AS (
-    SELECT goal_id, user_id, 'points' AS category, SUM(100.0 * counted / target * weight / (SELECT total FROM goal_weight)) AS total,
-      MIN(created_at) AS first_at FROM activity GROUP BY user_id
-    UNION ALL
-    SELECT goal_id, user_id, 'days', COUNT(DISTINCT date), MIN(created_at) FROM activity GROUP BY user_id
-    UNION ALL
-    SELECT goal_id, user_id,
-      CASE WHEN activity IN ('pushup', 'pushups') THEN 'pushups' WHEN activity IN ('squat', 'squats') THEN 'squats' ELSE 'situps' END,
-      SUM(amount), MIN(created_at) FROM activity
-      WHERE activity IN ('pushup', 'pushups', 'squat', 'squats', 'situp', 'situps') AND unit IN (${REP_UNITS})
-      GROUP BY user_id, 3
-    UNION ALL
-    SELECT goal_id, user_id, 'mileage',
-      SUM(amount * CASE WHEN unit IN (${KM_UNITS}) THEN 0.621371192237334 WHEN unit IN (${METER_UNITS}) THEN 0.000621371192237334 ELSE 1 END),
-      MIN(created_at) FROM activity WHERE unit IN (${MILE_UNITS}, ${KM_UNITS}, ${METER_UNITS})
-      GROUP BY user_id
-  )
-  SELECT goal_id, user_id, category, ROUND(total, 8) AS total, first_at FROM totals WHERE total > 0
-)`
-
 export const ACHIEVEMENT_SQL = [
     `INSERT OR IGNORE INTO group_earned_titles (group_id, user_id, title_id, earned_at)
       WITH days AS (
@@ -58,20 +15,6 @@ export const ACHIEVEMENT_SQL = [
         ) GROUP BY group_id, user_id, island
       ), thresholds(title_id, days) AS (VALUES ${TITLE_THRESHOLDS})
       SELECT DISTINCT s.group_id, s.user_id, t.title_id, unixepoch() * 1000 FROM streaks s JOIN thresholds t ON s.days >= t.days`,
-    `INSERT INTO goal_crowns (goal_id, category, user_id, total)
-      WITH ${CROWN_TOTALS}
-      SELECT goal_id, category, user_id, total FROM (
-        SELECT t.*, ROW_NUMBER() OVER (PARTITION BY t.category ORDER BY t.total DESC,
-          CASE WHEN t.user_id = c.user_id THEN 0 ELSE 1 END, t.first_at, t.user_id) AS rank
-        FROM crown_totals t LEFT JOIN goal_crowns c ON c.goal_id = t.goal_id AND c.category = t.category
-      ) WHERE rank = 1
-      ON CONFLICT (goal_id, category) DO UPDATE SET user_id = excluded.user_id, total = excluded.total
-      WHERE user_id IS NOT excluded.user_id OR total IS NOT excluded.total`,
-    `WITH ${CROWN_TOTALS}
-      DELETE FROM goal_crowns WHERE goal_id = ?1 AND NOT EXISTS
-      (SELECT 1 FROM crown_totals t WHERE t.category = goal_crowns.category)`,
-    `INSERT OR IGNORE INTO crown_records (goal_id, category, user_id, earned_at)
-      SELECT goal_id, category, user_id, unixepoch() * 1000 FROM goal_crowns WHERE goal_id = ?1`,
 ]
 
 export function achievementStatements(db: D1Database, goalId: string) {

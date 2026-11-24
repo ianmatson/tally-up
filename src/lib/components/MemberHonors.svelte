@@ -4,21 +4,28 @@
   import CheckIcon from '@lucide/svelte/icons/check'
   import CrownIcon from '@lucide/svelte/icons/crown'
   import type { GoalDetail, GroupDetail, Member } from '$shared/api'
-  import { CROWNS, TITLES, currentStreak, formatCrownTotal, type TitleId } from '$shared/achievements'
+  import { TITLES, currentStreak, type TitleId } from '$shared/achievements'
   import { api } from '$lib/api'
+  import type { CrownTally } from '$lib/crowns'
   import { cn } from '$lib/utils'
   import HatchTrack from './HatchTrack.svelte'
 
-  let { member, group, goal, today, userId }: {
-    member: Member; group: GroupDetail; goal: GoalDetail | null; today: string; userId: string
+  let { member, group, goal, tally, today, userId }: {
+    member: Member; group: GroupDetail; goal: GoalDetail | null; tally: CrownTally | undefined; today: string; userId: string
   } = $props()
   const client = useQueryClient()
   const isMe = $derived(member.id === userId)
-  const crowns = $derived(goal?.crowns?.filter((c) => c.userId === member.id) ?? [])
+  const crowns = $derived(
+    tally && goal
+      ? [
+          { id: 'overall', name: 'Top contributor', count: tally.overall },
+          ...goal.components.map((c) => ({ id: c.id, name: c.name, count: tally.byComponent.get(c.id) ?? 0 })),
+        ].filter((crown) => crown.count > 0)
+      : [],
+  )
   const earned = $derived(new Set(group.earnedTitles?.filter((t) => t.userId === member.id).map((t) => t.titleId)))
   const streak = $derived(currentStreak(goal?.entries.filter((e) => e.userId === member.id && e.amount > 0 && e.date >= goal.startDate && e.date <= goal.endDate).map((e) => e.date) ?? [], today))
   const next = $derived(TITLES.find((t) => !earned.has(t.id)))
-  const formerCrowns = $derived(goal?.crownRecords?.filter((r) => r.userId === member.id && !crowns.some((c) => c.category === r.category)) ?? [])
   const equip = createMutation(() => ({
     mutationFn: (titleId: TitleId) => api(`/groups/${group.id}/title`, { method: 'PUT', body: { titleId } }),
     onSuccess: () => {
@@ -34,25 +41,20 @@
       <h3 class="text-xs font-medium text-muted-foreground">Crowns</h3>
       {#if crowns.length}
         <ul class="mt-2 flex flex-col gap-2.5">
-          {#each crowns as crown (crown.category)}
+          {#each crowns as crown (crown.id)}
             <li class="flex items-center gap-3">
               <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-highlight text-highlight-foreground" aria-hidden="true">
                 <CrownIcon class="size-3.5" />
               </span>
-              <div class="min-w-0 flex-1 leading-tight">
-                <div class="truncate font-medium">{CROWNS[crown.category].name}</div>
-                <div class="truncate text-xs text-muted-foreground">{CROWNS[crown.category].label}</div>
-              </div>
-              <span class="tabular shrink-0 font-medium">{formatCrownTotal(crown.category, crown.total)}</span>
+              <span class="min-w-0 flex-1 truncate font-medium">{crown.name}</span>
+              <span class="tabular shrink-0 font-medium">{crown.count}<span class="sr-only"> {crown.count === 1 ? 'crown' : 'crowns'}</span></span>
             </li>
           {/each}
         </ul>
       {:else}
-        <p class="mt-1 text-muted-foreground">None yet. Lead a category in this goal to take one.</p>
+        <p class="mt-1 text-muted-foreground">None yet.</p>
       {/if}
-      {#if formerCrowns.length}
-        <p class="mt-2 text-xs text-muted-foreground">Previously held {formerCrowns.map((r) => CROWNS[r.category].name).join(', ')}</p>
-      {/if}
+      <p class="mt-2 text-xs text-muted-foreground">Each day, the top contributor overall and in each activity earns a crown. Ties earn none.</p>
     </section>
   {/if}
 

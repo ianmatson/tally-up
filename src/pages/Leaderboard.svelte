@@ -24,6 +24,7 @@
     periodRange,
     rankBy,
   } from '$lib/progress'
+  import { crownTallies } from '$lib/crowns'
   import { expand } from '$lib/motion'
   import { cn } from '$lib/utils'
 
@@ -42,6 +43,7 @@
   let showAllRows = $state(false)
 
   const credited = $derived(goal ? creditEntries(goal) : [])
+  const crowns = $derived(goal ? crownTallies(goal, today) : new Map())
   const entries = $derived(goal ? entriesInPeriod({ ...goal, entries: credited }, today, period) : [])
   const scores = $derived(goal ? memberScores(group.members, goal.components, entries) : [])
   const selectedComponent = $derived(goal?.components.find((c) => c.id === view))
@@ -175,7 +177,7 @@
             <span class="h-[3px] w-3 shrink-0 rounded-full" style="background: {memberColor(member.id)}" aria-hidden="true"></span>
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} tone={isMe ? 'highlight' : 'muted'} />
             <div class="min-w-0 flex-1">
-              <MemberNameLine {member} label="{member.name}{isMe ? ' (you)' : ''}" crowns={goal.crowns} showTitle={!!group.achievementsEnabled} class="text-sm" />
+              <MemberNameLine {member} label="{member.name}{isMe ? ' (you)' : ''}" crowns={crowns.get(member.id)?.total} showTitle={!!group.achievementsEnabled} class="text-sm" />
               <div class="mt-2 max-w-48"><HatchTrack value={row.share} size="sm" label="Share of group" /></div>
             </div>
             <div class="shrink-0 text-right">
@@ -197,7 +199,7 @@
                   <dd class="tabular text-right font-medium">{formatShare(part.contribution)}</dd>
                 {/each}
               </dl>
-              <div class="mx-3"><MemberHonors {member} {group} {goal} {today} userId={user.id} /></div>
+              <div class="mx-3"><MemberHonors {member} {group} {goal} tally={crowns.get(member.id)} {today} userId={user.id} /></div>
             </div>
           {/if}
         </li>

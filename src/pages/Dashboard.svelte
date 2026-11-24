@@ -5,6 +5,7 @@
   import XIcon from '@lucide/svelte/icons/x'
   import ActivityItem from '$lib/components/ActivityItem.svelte'
   import { install } from '$lib/install.svelte'
+  import CrownRaceCard from '$lib/components/CrownRaceCard.svelte'
   import GoalProgressCard from '$lib/components/GoalProgressCard.svelte'
   import MemberNameLine from '$lib/components/MemberNameLine.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
@@ -14,6 +15,7 @@
   import { formatDays, formatMembers, formatNumber, formatShare } from '$lib/format'
   import { greeting } from '$lib/greeting'
   import { personalGoals } from '$lib/personal-goals'
+  import { crownTallies } from '$lib/crowns'
   import { creditEntries, entriesInPeriod, goalProgress, memberScores, type Period, PERIOD_OPTIONS, rankBy } from '$lib/progress'
 
   const ACTIVITY_PREVIEW = 5
@@ -44,6 +46,7 @@
         )
       : [],
   )
+  const crowns = $derived(goal && progress ? crownTallies(goal, progress.today) : new Map())
   const daysToStart = $derived(goal && progress ? daysBetween(progress.today, goal.startDate) : 0)
   const leaderRows = $derived.by(() => {
     const top = ranked.slice(0, LEADER_PREVIEW)
@@ -132,6 +135,10 @@
           <GoalProgressCard {goal} {progress} memberCount={group.members.length} {daysToStart} />
         </div>
 
+        {#if progress.phase === 'active'}
+          <div class="max-lg:order-2"><CrownRaceCard {goal} {progress} {membersById} userId={user.id} /></div>
+        {/if}
+
         <section class="rise-in rounded-card bg-card p-4 [animation-delay:180ms] max-lg:order-4 sm:p-5" aria-label="Leaderboard">
           <div class="mb-3 flex items-center justify-between gap-3">
             <a href={leaderboardHref} class="flex items-center gap-1 font-semibold tracking-tight">
@@ -146,7 +153,7 @@
                 <span class="tabular w-4 text-center text-xs font-medium text-muted-foreground">{row.rank}</span>
                 <UserAvatar name={row.item.member.name} avatarUrl={row.item.member.avatarUrl} size="sm" tone={isMe ? 'highlight' : 'muted'} />
                 <div class="min-w-0 flex-1">
-                  <MemberNameLine member={row.item.member} label={isMe ? 'You' : row.item.member.name} crowns={goal.crowns} showTitle={!!group.achievementsEnabled} class="text-sm" />
+                  <MemberNameLine member={row.item.member} label={isMe ? 'You' : row.item.member.name} crowns={crowns.get(row.item.member.id)?.total} showTitle={!!group.achievementsEnabled} class="text-sm" />
                 </div>
                 <span class="tabular shrink-0 text-sm font-semibold">{formatShare(row.value)}</span>
               </li>

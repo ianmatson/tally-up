@@ -1,6 +1,4 @@
 import { addDays } from './dates'
-import { formatNumber } from './format'
-import { formatAmount } from './units'
 
 export const TITLES = [
   { id: 'initiate', name: 'Initiate', days: 1 },
@@ -12,20 +10,7 @@ export const TITLES = [
 export type TitleId = (typeof TITLES)[number]['id']
 export const titleName = (id?: string | null) => TITLES.find((t) => t.id === id)?.name
 
-export const CROWNS = {
-  pushups: { name: 'Juggernaut', label: 'Pushup leader', unit: 'pushups' },
-  mileage: { name: 'Blade Runner', label: 'Mileage leader', unit: 'mi' },
-  squats: { name: 'Titan', label: 'Squat leader', unit: 'squats' },
-  situps: { name: 'Unbreakable', label: 'Situp leader', unit: 'situps' },
-  points: { name: 'GOAT', label: 'Top contributor', unit: '% of goal' },
-  days: { name: 'Relentless', label: 'Active days leader', unit: 'days' },
-} as const
-export type CrownId = keyof typeof CROWNS
-export type Crown = { category: CrownId; userId: string; total: number }
 export type EarnedTitle = { userId: string; titleId: TitleId; earnedAt: number }
-export const formatCrownTotal = (category: CrownId, total: number) =>
-  category === 'points' ? `${formatNumber(total)}% of goal` : formatAmount(total, CROWNS[category].unit)
-export type CrownRecord = { userId: string; category: CrownId; earnedAt: number }
 
 /** A streak remains live until the user misses a complete calendar day. */
 export function currentStreak(dates: string[], today: string): number {

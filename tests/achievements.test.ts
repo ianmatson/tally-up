@@ -13,7 +13,6 @@ const refresh = (goal = 'goal') => {
   catch (error) { db.exec('ROLLBACK'); throw error }
 }
 const titles = (user = 'a') => db.prepare('SELECT title_id FROM group_earned_titles WHERE user_id = ? ORDER BY title_id').all(user).map((r) => r.title_id)
-const crown = (category = 'pushups') => db.prepare('SELECT user_id, total FROM goal_crowns WHERE goal_id = ? AND category = ?').get('goal', category)
 function log(user = 'a', amount = 10, date = '2026-11-23', component = 'push', goal = 'goal') {
   const id = `entry-${++sequence}`
   db.prepare('INSERT INTO entries (id, goal_id, component_id, user_id, amount, date, created_at, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
@@ -54,7 +53,10 @@ describe('permanent titles', () => {
     expect(titles()).toEqual(['acolyte', 'disciple', 'initiate', 'legend', 'veteran'])
     db.exec('DELETE FROM entries'); refresh()
     expect(titles()).toContain('legend')
-    expect(crown()).toBeUndefined()
+  })
+  it('ignores entries outside the goal window', () => {
+    log('a', 10, '2026-11-22')
+    expect(titles()).toEqual([])
   })
   it('does not combine broken streaks or different goals', () => {
     log('a', 10, '2026-11-23'); log('a', 10, '2026-11-24'); log('a', 10, '2026-11-26')
@@ -81,53 +83,6 @@ describe('permanent titles', () => {
   })
 })
 
-describe('crowns', () => {
-  it('retains the incumbent on ties, transfers on overtake, and preserves prior wins', () => {
-    log('b', 10); log('a', 10)
-    expect(crown()?.user_id).toBe('b')
-    const winning = log('a', 1)
-    expect(crown()?.user_id).toBe('a')
-    db.prepare('DELETE FROM entries WHERE id = ?').run(winning); refresh()
-    expect(crown()?.user_id).toBe('a')
-    log('b', 1)
-    expect(crown()?.user_id).toBe('b')
-    expect(db.prepare("SELECT COUNT(*) AS n FROM crown_records WHERE category = 'pushups'").get()?.n).toBe(2)
-  })
-  it('uses share of the goal, distinct days, and all six crown categories', () => {
-    log('a', 10); log('a', 10); log('a', 2, '2026-11-23', 'run');
-    log('a', 3, '2026-11-24', 'squat'); log('a', 4, '2026-11-24', 'sit')
-    expect(crown('points')?.total).toBeCloseTo(100 * (20 / 1000 * 2000 + 2 / 100 * 1000 + 3 / 1000 * 1000 + 4 / 1000 * 1000) / 5600, 4)
-    expect(crown('days')?.total).toBe(2)
-    expect(db.prepare('SELECT COUNT(*) AS n FROM goal_crowns').get()?.n).toBe(6)
-  })
-  it('normalizes kilometers to miles and respects edits and membership removal', () => {
-    log('a', 1, '2026-11-23', 'run')
-    const id = log('b', 1.609344, '2026-11-23', 'km')
-    expect(crown('mileage')).toEqual({ user_id: 'a', total: 1 })
-    db.prepare('UPDATE entries SET amount = 4 WHERE id = ?').run(id); refresh()
-    expect(crown('mileage')?.user_id).toBe('b')
-    db.exec("DELETE FROM memberships WHERE user_id = 'b'"); refresh()
-    expect(crown('mileage')?.user_id).toBe('a')
-  })
-  it('excludes entries outside the goal window and activities measured in time from rep crowns', () => {
-    log('a', 10, '2026-11-22')
-    expect(crown()).toBeUndefined()
-    expect(titles()).toEqual([])
-    db.exec("UPDATE components SET unit = 'min' WHERE id = 'push'")
-    log()
-    expect(crown()).toBeUndefined()
-    expect(crown('points')?.total).toBeCloseTo(100 * (10 / 1000 * 2000) / 5600, 4)
-  })
-  it('credits goal share in date order and ignores logs past a component target', () => {
-    log('a', 900, '2026-11-24')
-    log('b', 200, '2026-11-23')
-    expect(crown('points')).toEqual({ user_id: 'a', total: expect.closeTo(0.8 * 35.71, 4) })
-    log('b', 1000, '2026-11-25')
-    expect(crown('points')?.user_id).toBe('a')
-    expect(crown('pushups')).toEqual({ user_id: 'b', total: 1200 })
-  })
-})
-
 it('current streak uses calendar dates, preserves yesterday, and resets after a missed day', () => {
   const dates = ['2026-11-23', '2026-11-24', '2026-11-24', '2026-11-25']
   expect(currentStreak(dates, '2026-11-25')).toBe(3)
@@ -145,15 +100,12 @@ function otherGroup(name = 'Another group') {
 }
 
 describe('DG-only titles', () => {
-  it('ignores other groups for titles but awards crowns there', () => {
+  it('ignores other groups for titles', () => {
     otherGroup()
     for (let i = 0; i < 28; i++) log('a', 1000, addDays('2026-11-23', i), 'outside-push', 'outside-goal')
     expect(titles()).toEqual([])
-    expect(db.prepare("SELECT category, user_id FROM goal_crowns WHERE goal_id = 'outside-goal' ORDER BY category").all())
-      .toEqual([{ category: 'days', user_id: 'a' }, { category: 'points', user_id: 'a' }, { category: 'pushups', user_id: 'a' }])
     log('a', 10)
     expect(titles()).toEqual(['initiate'])
-    expect(crown()?.total).toBe(10)
     expect(db.prepare(GROUP_TITLES_SQL).all('outside')).toEqual([])
     expect(db.prepare(GROUP_TITLES_SQL).all('group')).toHaveLength(1)
     expect(db.prepare(EQUIP_TITLE_SQL).run('outside', 'a', 'initiate').changes).toBe(0)
@@ -170,7 +122,7 @@ describe('DG-only titles', () => {
     expect(titles()).toEqual(['initiate'])
     expect(db.prepare('SELECT group_id FROM achievement_groups').get()?.group_id).toBe('group')
   })
-  it.each(['missing', 'ambiguous'])('disables titles but keeps crowns if the initial DG match is %s', (scenario) => {
+  it.each(['missing', 'ambiguous'])('disables titles if the initial DG match is %s', (scenario) => {
     db.close(); setup(false)
     if (scenario === 'missing') db.exec("UPDATE groups SET name = 'Not DG'")
     else otherGroup('DG (Daddy Gainz)')
@@ -178,7 +130,6 @@ describe('DG-only titles', () => {
     log()
     expect(db.prepare('SELECT * FROM achievement_groups').all()).toEqual([])
     expect(titles()).toEqual([])
-    expect(crown()?.total).toBe(10)
   })
   it('cleans up account-wide awards from outside DG during migration', () => {
     db.close(); setup(false)
