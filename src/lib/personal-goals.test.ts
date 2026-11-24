@@ -24,24 +24,33 @@ const now = new Date('2026-11-25T18:00:00Z')
 const remaining = (entries: Entry[], time = now) => personalGoals(group, { ...goal, entries }, 'a', time).map((t) => t.remaining)
 
 describe('DG personal goals', () => {
-  it('splits the original goal evenly and extrapolates running to seven days', () => {
-    expect(remaining([])).toEqual([50, 50, 7, 100])
+  it('uses the remaining group pace and extrapolates running to seven days', () => {
+    expect(remaining([])).toEqual([350, 350, 49, 700])
   })
   it('subtracts only personal logs in the current day or Monday-based week', () => {
     expect(remaining([
       entry('p', 20, '2026-11-25'), entry('p', 500, '2026-11-24'),
-      entry('p', 1000, '2026-11-25', 'b'), entry('s', 5, '2026-11-26'),
-      entry('m', 2.25, '2026-11-23'), entry('m', 100, '2026-11-22'),
+      entry('p', 1000, '2026-11-25', 'b'),
+      entry('m', 2.25, '2026-11-23'), entry('m', 1, '2026-11-22'),
       entry('q', 120, '2026-11-25'),
-    ])).toEqual([30, 50, 4.8, 0])
+    ])).toEqual([140, 350, 44, 565])
   })
   it('resets at group midnight and Monday without carrying surplus or debt', () => {
     const entries = [entry('p', 70, '2026-11-22'), entry('m', 10, '2026-11-22')]
-    expect(remaining(entries, new Date('2026-11-23T05:59:00Z'))).toEqual([0, 50, 0, 100])
-    expect(remaining(entries, new Date('2026-11-23T06:00:00Z'))).toEqual([50, 50, 7, 100])
+    expect(remaining(entries, new Date('2026-11-23T05:59:00Z'))).toEqual([125, 200, 13, 400])
+    expect(remaining(entries, new Date('2026-11-23T06:00:00Z'))).toEqual([228, 234, 26.9, 467])
   })
-  it('does not let group catch-up progress change personal targets', () => {
-    expect(remaining([entry('p', 2700, '2026-11-24', 'b')])).toEqual(remaining([]))
+  it('updates personal targets when other members change the group pace', () => {
+    expect(remaining([entry('p', 2700, '2026-11-24', 'b')])).toEqual([13, 350, 49, 700])
+  })
+  it('shows eight pushups left after 50 when the group pace is 57.8 per day', () => {
+    const sixMembers = { ...group, members: Array.from({ length: 6 }, (_, i) => ({ ...group.members[0], id: i === 0 ? 'a' : String(i) })) }
+    const screenshotGoal = { ...goal, startDate: '2026-11-25', endDate: '2027-01-02',
+      components: [{ ...goal.components[0], target: 13650 }],
+      entries: [entry('p', 50, '2026-11-25'), entry('p', 70, '2026-11-25', 'b')] }
+    const [target] = personalGoals(sixMembers, screenshotGoal, 'a', now)
+    expect(target.target).toBeCloseTo(57.8205128)
+    expect(target.remaining).toBe(8)
   })
   it('hides for other groups, nonmembers, archived and inactive goals', () => {
     expect(personalGoals({ ...group, achievementsEnabled: false, name: 'DG (Daddy Gainz)' }, goal, 'a', now)).toEqual([])
@@ -52,8 +61,8 @@ describe('DG personal goals', () => {
   })
   it('rounds reps up and avoids floating-point leftovers for completed miles', () => {
     const smallGoal = { ...goal, components: [
-      { ...goal.components[0], target: 2801 }, { ...goal.components[2], target: 8 },
+      { ...goal.components[0], target: 2801 }, { ...goal.components[2], target: 2 },
     ], entries: Array.from({ length: 10 }, () => entry('m', 0.1, '2026-11-25')) }
-    expect(personalGoals(group, smallGoal, 'a', now).map((t) => t.remaining)).toEqual([51, 0])
+    expect(personalGoals(group, smallGoal, 'a', now).map((t) => t.remaining)).toEqual([351, 0])
   })
 })
