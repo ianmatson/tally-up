@@ -1,5 +1,6 @@
 import type { GoalDetail, GroupDetail } from '$shared/api'
-import { addDays, dateMs, daysBetween, todayIn } from '$shared/dates'
+import { addDays, dateMs, todayIn } from '$shared/dates'
+import { goalProgress } from './progress'
 
 const ACTIVITIES = [
   { label: 'pushups', names: ['pushup', 'pushups'], weekly: false },
@@ -14,7 +15,7 @@ export function personalGoals(group: GroupDetail, goal: GoalDetail, userId: stri
   if (!group.achievementsEnabled || goal.archived || !group.members.some((m) => m.id === userId)
     || today < goal.startDate || today > goal.endDate) return []
 
-  const totalDays = daysBetween(goal.startDate, goal.endDate) + 1
+  const progress = goalProgress(goal, group.timezone, now)
   const monday = addDays(today, -((new Date(dateMs(today)).getUTCDay() + 6) % 7))
 
   return ACTIVITIES.flatMap((activity) => {
@@ -25,10 +26,11 @@ export function personalGoals(group: GroupDetail, goal: GoalDetail, userId: stri
     })
     if (!components.length) return []
     const ids = new Set(components.map((c) => c.id))
-    // Use the original even daily share, never the group's catch-up pace.
-    const rawTarget = components.reduce((sum, c) => sum + c.target, 0)
-      / totalDays / group.members.length * (activity.weekly ? 7 : 1)
-    const target = activity.weekly ? rawTarget : Math.ceil(rawTarget)
+    // Share the group card's current pace; only this period's personal logs are deducted.
+    const target = progress.components
+      .filter((item) => ids.has(item.component.id))
+      .reduce((sum, item) => sum + item.neededPerDay, 0)
+      / group.members.length * (activity.weekly ? 7 : 1)
     const start = activity.weekly ? monday : today
     const logged = goal.entries
       .filter((e) => e.userId === userId && ids.has(e.componentId)

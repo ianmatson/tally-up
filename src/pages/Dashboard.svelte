@@ -273,7 +273,7 @@
         {#if personalTargets.length}
           <section class="rise-in rounded-card bg-card p-4 [animation-delay:210ms] max-lg:order-3 sm:p-5" aria-labelledby="personal-goals-heading">
             <h2 id="personal-goals-heading" class="font-semibold tracking-tight">Your goals</h2>
-            <p class="mt-1 text-xs text-muted-foreground">Your share of the group goal. No rollover.</p>
+            <p class="mt-1 text-xs text-muted-foreground">Based on the group’s current daily pace. No rollover.</p>
             <ul class="mt-3 divide-y">
               {#each personalTargets as target (target.label)}
                 <li class="flex items-baseline gap-2 py-3">
