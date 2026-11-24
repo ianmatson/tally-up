@@ -12,10 +12,10 @@
   import type { GoalDetail, GoalInput, GroupDetail, Member, User } from '$shared/api'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
+  import AdminShield from '$lib/components/AdminShield.svelte'
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
   import GoalForm from '$lib/components/GoalForm.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
-  import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
   import * as Card from '$lib/components/ui/card'
@@ -203,8 +203,10 @@
         {#each group.members as member (member.id)}
           <li class="flex items-center gap-3">
             <UserAvatar name={member.name} avatarUrl={member.avatarUrl} />
-            <span class="min-w-0 flex-1 truncate text-sm font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}</span>
-            {#if member.isAdmin}<Badge variant="highlight">Admin</Badge>{/if}
+            <span class="flex min-w-0 flex-1 items-center gap-1.5">
+              <span class="truncate text-sm font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}</span>
+              {#if member.isAdmin}<AdminShield />{/if}
+            </span>
             {#if member.id !== user.id}
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger

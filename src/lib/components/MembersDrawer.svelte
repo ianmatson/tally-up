@@ -8,13 +8,13 @@
   import { groupQuery, groupsQuery } from '$lib/queries'
   import { navigate } from '$lib/router.svelte'
   import ConfirmDialog from './ConfirmDialog.svelte'
+  import AdminShield from './AdminShield.svelte'
   import CrownBadge from './CrownBadge.svelte'
   import MemberHonors from './MemberHonors.svelte'
   import { expand } from '$lib/motion'
   import { cn } from '$lib/utils'
   import { titleName } from '$shared/achievements'
   import { formatMembers } from '$lib/format'
-  import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
   import * as Drawer from '$lib/components/ui/drawer'
   import DrawerCloseButton from './DrawerCloseButton.svelte'
@@ -67,13 +67,13 @@
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5">
                   <span class="truncate font-medium">{member.name}{member.id === user.id ? ' (you)' : ''}</span>
+                  {#if member.isAdmin}<AdminShield />{/if}
                   {#if crownCount}<CrownBadge count={crownCount} />{/if}
                 </div>
                 <div class="truncate text-xs text-muted-foreground">
                   {[group.achievementsEnabled && titleName(member.selectedTitle), `Joined ${joined.format(member.joinedAt)}`].filter(Boolean).join(' · ')}
                 </div>
               </div>
-              {#if member.isAdmin}<Badge variant="highlight">Admin</Badge>{/if}
               {#if hasHonors}
                 <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
               {/if}
