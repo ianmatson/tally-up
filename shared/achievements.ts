@@ -16,7 +16,7 @@ export const CROWNS = {
   squats: { name: 'Titan', label: 'Squat leader', unit: 'squats' },
   situps: { name: 'Unbreakable', label: 'Situp leader', unit: 'situps' },
   points: { name: 'GOAT', label: 'Points leader', unit: 'pts' },
-  days: { name: 'Final Boss', label: 'Active days leader', unit: 'days' },
+  days: { name: 'Relentless', label: 'Active days leader', unit: 'days' },
 } as const
 export type CrownId = keyof typeof CROWNS
 export type Crown = { category: CrownId; userId: string; total: number }
