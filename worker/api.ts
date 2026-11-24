@@ -454,7 +454,7 @@ api.put(
       c.env.DB.prepare(DETACH_PHOTO_SQL).bind(entry.entry_id),
       c.env.DB.prepare(INSERT_PHOTO_SQL).bind(key, entry.entry_id, Date.now()),
     ])
-    return c.json({ photoUrl: `${PHOTO_PATH}${key}` })
+    return c.body(null, 204)
   },
 )
 
