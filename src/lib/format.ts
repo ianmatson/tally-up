@@ -112,7 +112,7 @@ const pad = (n: number) => String(n).padStart(2, '0')
 
 export const formatClockMinutes = (minutes: number) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`
 
-export function toLocalInput(timestamp: number): string {
+function toLocalInput(timestamp: number): string {
   const d = new Date(timestamp)
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }

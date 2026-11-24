@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { describeActivity, unitPlural } from '$shared/units'
+  import { unitPlural } from '$shared/units'
   import ImagePlusIcon from '@lucide/svelte/icons/image-plus'
   import PlusIcon from '@lucide/svelte/icons/plus'
-  import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw'
   import XIcon from '@lucide/svelte/icons/x'
   import { createMutation, useQueryClient } from '@tanstack/svelte-query'
   import { tick, untrack } from 'svelte'
@@ -10,7 +9,6 @@
   import type { Entry, EntryAmount, EntryInput, GoalDetail } from '$shared/api'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
-  import { activityLines, toLocalInput } from '$lib/format'
   import { scaledPhoto } from '$lib/images'
   import { goalQuery } from '$lib/queries'
   import { Button } from '$lib/components/ui/button'
@@ -35,8 +33,6 @@
   let amounts = $state<Record<string, number | null>>({})
   let picked = $state<string[]>([])
   let choosing = $state(false)
-  let when = $state('')
-  let latestWhen = $state('')
   let note = $state('')
   let confirmDelete = $state(false)
   let photo = $state<Blob | null | undefined>(undefined)
@@ -48,8 +44,6 @@
     amounts = draftAmounts(entry?.amounts ?? [])
     picked = componentIds(entry ?? lastEntry)
     choosing = false
-    latestWhen = toLocalInput(Date.now())
-    when = entry ? toLocalInput(entry.occurredAt) : today > goal.endDate ? goal.endDate + GOAL_ENDED_DEFAULT_TIME : latestWhen
     note = entry?.note ?? ''
     photo = undefined
     preparingPhoto = false
@@ -64,12 +58,6 @@
     return source?.amounts.map((line) => line.componentId) ?? []
   }
 
-  function repeatLast() {
-    if (!lastEntry) return
-    amounts = draftAmounts(lastEntry.amounts)
-    picked = [...new Set([...picked, ...componentIds(lastEntry)])]
-  }
-
   async function pick(componentId: string) {
     picked = [...picked, componentId]
     await tick()
@@ -80,9 +68,7 @@
     if (open) untrack(resetDraft)
   })
 
-  const componentsById = $derived(new Map(goal.components.map((c) => [c.id, c])))
   const lastEntry = $derived(entry ? null : (goal.entries.find((e) => e.userId === userId) ?? null))
-  const lastActivity = $derived(lastEntry && describeActivity(activityLines(lastEntry.amounts, componentsById)))
   const showAll = $derived(goal.components.length <= MAX_ALL_ROWS)
   const rows = $derived(showAll ? goal.components : goal.components.filter((c) => picked.includes(c.id)))
   const unpicked = $derived(showAll ? [] : goal.components.filter((c) => !picked.includes(c.id)))
@@ -92,7 +78,7 @@
       return amount > 0 ? [{ componentId: c.id, amount }] : []
     }),
   )
-  const canSave = $derived(lines.length > 0 && !!when && !preparingPhoto)
+  const canSave = $derived(lines.length > 0 && !preparingPhoto)
   const newPhotoUrl = $derived(photo ? URL.createObjectURL(photo) : null)
   const photoUrl = $derived(photo === undefined ? (entry?.photoUrl ?? null) : newPhotoUrl)
 
@@ -151,8 +137,7 @@
   function submit(event: SubmitEvent) {
     event.preventDefault()
     if (!canSave) return
-    const unchanged = entry && when === toLocalInput(entry.occurredAt)
-    const occurredAt = unchanged ? entry.occurredAt : new Date(when).getTime()
+    const occurredAt = entry ? entry.occurredAt : today > goal.endDate ? new Date(goal.endDate + GOAL_ENDED_DEFAULT_TIME).getTime() : Date.now()
     save.mutate({ input: { amounts: lines, occurredAt, note: note.trim() || null }, photo, entryId: entry?.id, draft: draftId })
   }
 </script>
@@ -169,19 +154,6 @@
       <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4">
         <fieldset class="flex flex-col">
           <legend class="mb-2 text-sm font-medium">What did you do?</legend>
-          {#if lastEntry}
-            <button
-              type="button"
-              class="mb-2 flex items-center gap-3 rounded-2xl bg-secondary px-4 py-3 text-left transition-colors hover:bg-accent"
-              onclick={repeatLast}
-            >
-              <RotateCcwIcon class="size-4 shrink-0 text-muted-foreground" />
-              <span class="min-w-0">
-                <span class="block text-sm font-medium">Same as last time</span>
-                <span class="block truncate text-xs text-muted-foreground">{lastActivity}</span>
-              </span>
-            </button>
-          {/if}
           {#if rows.length > 0}
             <div class="flex flex-col divide-y rounded-2xl border">
               {#each rows as component (component.id)}
@@ -228,10 +200,6 @@
           {/if}
         </fieldset>
 
-        <div class="flex min-w-0 flex-col gap-2">
-          <Label for="entry-when">When</Label>
-          <Input id="entry-when" type="datetime-local" max={latestWhen} bind:value={when} required />
-        </div>
         <div class="flex min-w-0 flex-col gap-2">
           <Label for="entry-note">Note</Label>
           <Input id="entry-note" maxlength={LIMITS.note} placeholder="Optional, like “Felt strong today”" bind:value={note} />
