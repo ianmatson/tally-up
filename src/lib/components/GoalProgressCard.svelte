@@ -34,13 +34,14 @@
   const plotWidth = $derived(Math.max(0, width - PAD.left - PAD.right))
   const lastIndex = $derived(values.length - 1)
   const index = $derived(hover ?? lastIndex)
-  const pace = (i: number) => (i + 1) / progress.totalDays
+  const dayEnd = (i: number) => (i === lastIndex && progress.phase === 'active' ? progress.elapsedFraction * progress.totalDays : i + 1)
+  const pace = (i: number) => dayEnd(i) / progress.totalDays
 
   const x = (day: number) => PAD.left + (day / progress.totalDays) * plotWidth
   const y = (fraction: number) => PAD.top + plotHeight - Math.min(1, fraction) * plotHeight
-  const points = $derived([[x(0), y(0)], ...values.map((v, i) => [x(i + 1), y(v)])])
+  const points = $derived([[x(0), y(0)], ...values.map((v, i) => [x(dayEnd(i)), y(v)])])
   const line = $derived(points.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)},${py.toFixed(1)}`).join(''))
-  const area = $derived(values.length ? `${line}L${x(values.length).toFixed(1)},${y(0)}L${x(0)},${y(0)}Z` : '')
+  const area = $derived(values.length ? `${line}L${x(dayEnd(lastIndex)).toFixed(1)},${y(0)}L${x(0)},${y(0)}Z` : '')
 
   const status = $derived.by(() => {
     if (progress.complete) return { label: 'Goal complete', ahead: true }
@@ -49,6 +50,20 @@
     const days = roundDays(progress.daysAhead)
     return { label: `${formatNumber(days)} ${dayWord(days)} ${progress.daysAhead >= 0 ? 'ahead of' : 'behind'} pace`, ahead: progress.daysAhead >= 0 }
   })
+
+  const chartRole = $derived(
+    values.length
+      ? {
+          role: 'slider',
+          tabindex: 0,
+          'aria-label': 'Group progress by day',
+          'aria-valuemin': 0,
+          'aria-valuemax': lastIndex,
+          'aria-valuenow': index,
+          'aria-valuetext': `${formatDate(addDays(goal.startDate, index))}: ${formatShare(values[index])} complete, pace ${formatShare(pace(index))}`,
+        }
+      : { role: 'img', 'aria-label': 'Group progress chart. No progress yet.' },
+  )
 
   function track(event: PointerEvent & { currentTarget: SVGSVGElement }) {
     if (lastIndex < 0) return
@@ -90,17 +105,12 @@
       <svg
         {width}
         {height}
-        role="slider"
-        aria-label="Group progress by day"
-        aria-valuemin={0}
-        aria-valuemax={Math.max(0, lastIndex)}
-        aria-valuenow={Math.max(0, index)}
-        aria-valuetext={lastIndex < 0 ? 'No progress yet' : `${formatDate(addDays(goal.startDate, index))}: ${formatShare(values[index])} complete, pace ${formatShare(pace(index))}`}
-        tabindex="0"
+        {...chartRole}
         class="block touch-pan-y overflow-visible rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         onpointermove={track}
         onpointerdown={track}
         onpointerleave={(e) => e.pointerType === 'mouse' && (hover = null)}
+        onpointercancel={() => (hover = null)}
         onkeydown={onKeydown}
         onblur={() => (hover = null)}
       >
@@ -116,7 +126,9 @@
           <text x={PAD.left - 8} y={y(tick)} dy="0.32em" text-anchor="end" class="fill-muted-foreground text-[11px] tabular">{formatPercent(tick)}</text>
         {/each}
         <text x={PAD.left} y={height - 6} class="fill-muted-foreground text-[11px]">{formatDate(goal.startDate)}</text>
-        <text x={PAD.left + plotWidth} y={height - 6} text-anchor="end" class="fill-muted-foreground text-[11px]">{formatDate(goal.endDate)}</text>
+        {#if goal.endDate !== goal.startDate}
+          <text x={PAD.left + plotWidth} y={height - 6} text-anchor="end" class="fill-muted-foreground text-[11px]">{formatDate(goal.endDate)}</text>
+        {/if}
 
         <line x1={x(0)} y1={y(0)} x2={x(progress.totalDays)} y2={y(1)} stroke="var(--muted-foreground)" stroke-width="1.5" stroke-dasharray="4 5" opacity="0.6" />
 
@@ -124,21 +136,21 @@
           <path d={area} fill="url(#goal-area)" class="goal-area" />
           <path d={line} pathLength="1" fill="none" stroke="var(--foreground)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" class="goal-line" />
           {#if hover === null}
-            <circle cx={x(values.length)} cy={y(values[lastIndex])} r="9" fill="var(--highlight)" class="goal-pulse" />
+            <circle cx={x(dayEnd(lastIndex))} cy={y(values[lastIndex])} r="9" fill="var(--highlight)" class="goal-pulse" />
           {/if}
-          <circle cx={x(index + 1)} cy={y(values[index])} r="5" fill="var(--highlight)" stroke="var(--foreground)" stroke-width="2" />
+          <circle cx={x(dayEnd(index))} cy={y(values[index])} r="5" fill="var(--highlight)" stroke="var(--foreground)" stroke-width="2" />
         {/if}
 
         {#if hover !== null}
-          <line x1={x(index + 1)} x2={x(index + 1)} y1={PAD.top} y2={PAD.top + plotHeight} stroke="var(--foreground)" stroke-width="1" opacity="0.3" />
-          <circle cx={x(index + 1)} cy={y(pace(index))} r="3" fill="var(--muted-foreground)" />
+          <line x1={x(dayEnd(index))} x2={x(dayEnd(index))} y1={PAD.top} y2={PAD.top + plotHeight} stroke="var(--foreground)" stroke-width="1" opacity="0.3" />
+          <circle cx={x(dayEnd(index))} cy={y(pace(index))} r="3" fill="var(--muted-foreground)" />
         {/if}
       </svg>
 
       {#if hover !== null}
         <div
           class="pointer-events-none absolute top-0 z-10 rounded-xl bg-popover px-3 py-2 text-sm shadow-[0_8px_24px_rgb(0_0_0/0.14)] ring-1 ring-border"
-          style="{x(index + 1) > width / 2 ? 'right' : 'left'}: {x(index + 1) > width / 2 ? width - x(index + 1) + 12 : x(index + 1) + 12}px"
+          style="{x(dayEnd(index)) > width / 2 ? 'right' : 'left'}: {x(dayEnd(index)) > width / 2 ? width - x(dayEnd(index)) + 12 : x(dayEnd(index)) + 12}px"
           role="status"
         >
           <div class="text-xs text-muted-foreground">{formatDate(addDays(goal.startDate, index))}</div>
