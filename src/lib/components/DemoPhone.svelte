@@ -10,9 +10,9 @@
     { name: 'Run', total: '80.4 / 50 mi', value: 1.6 },
   ]
   const LEADERS = [
-    { initials: 'BO', name: 'Ben', points: 755, me: false },
-    { initials: 'CP', name: 'Cy', points: 521, me: false },
-    { initials: 'AT', name: 'You', points: 500, me: true },
+    { initials: 'BO', name: 'Ben', score: '18.9%', me: false },
+    { initials: 'CP', name: 'Cy', score: '13%', me: false },
+    { initials: 'AT', name: 'You', score: '12.5%', me: true },
   ]
   const PACE = 0.68
 </script>
@@ -56,7 +56,7 @@
       {#each LEADERS as l (l.name)}
         <div class="flex items-center gap-2 text-xs">
           <span class="grid size-5 place-items-center rounded-full text-[0.55rem] font-semibold {l.me ? 'bg-highlight text-highlight-foreground' : 'bg-secondary text-muted-foreground'}">{l.initials}</span>
-          <span class="flex-1 font-medium">{l.name}</span><span class="tabular font-semibold">{l.points}</span>
+          <span class="flex-1 font-medium">{l.name}</span><span class="tabular font-semibold">{l.score}</span>
         </div>
       {/each}
     </div>

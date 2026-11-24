@@ -1,30 +1,24 @@
 <script lang="ts">
-  import { formatAmount } from '$shared/units'
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
   import type { Entry, GoalDetail, GroupDetail, User } from '$shared/api'
   import { daysBetween } from '$shared/dates'
   import XIcon from '@lucide/svelte/icons/x'
   import ActivityItem from '$lib/components/ActivityItem.svelte'
   import { install } from '$lib/install.svelte'
-  import CountUp from '$lib/components/CountUp.svelte'
-  import HatchTrack from '$lib/components/HatchTrack.svelte'
+  import GoalProgressCard from '$lib/components/GoalProgressCard.svelte'
   import MemberNameLine from '$lib/components/MemberNameLine.svelte'
   import PillTabs from '$lib/components/PillTabs.svelte'
   import TallyGlyph from '$lib/components/TallyGlyph.svelte'
   import UserAvatar from '$lib/components/UserAvatar.svelte'
   import { Button } from '$lib/components/ui/button'
-  import { dayWord, formatDays, formatMembers, formatNumber, formatPercent, formatPoints, roundDays } from '$lib/format'
+  import { formatDays, formatMembers, formatNumber, formatShare } from '$lib/format'
   import { greeting } from '$lib/greeting'
   import { personalGoals } from '$lib/personal-goals'
-  import { entriesInPeriod, goalProgress, memberScores, type Period, PERIOD_OPTIONS, rankBy } from '$lib/progress'
+  import { creditEntries, entriesInPeriod, goalProgress, memberScores, type Period, PERIOD_OPTIONS, rankBy } from '$lib/progress'
 
   const ACTIVITY_PREVIEW = 5
-  const COMPONENT_PREVIEW = 5
   const MEMBER_STACK = 4
   const LEADER_PREVIEW = 3
-  const TILE_LABEL = 'text-[0.8rem]'
-  const TILE_VALUE = 'mt-3 flex items-baseline gap-1.5 text-[2.6rem] leading-none font-semibold tracking-[-0.04em] sm:text-5xl'
-  const TILE_UNIT = 'text-sm font-medium tracking-normal opacity-70'
 
   let { group, goal, now, user, canLog, onOpen, onShowMembers }: {
     group: GroupDetail
@@ -37,7 +31,6 @@
   } = $props()
 
   let leaderPeriod = $state<Period>('all')
-  let showAllComponents = $state(false)
 
   const progress = $derived(goal ? goalProgress(goal, group.timezone, now) : null)
   const personalTargets = $derived(goal ? personalGoals(group, goal, user.id, now) : [])
@@ -45,7 +38,10 @@
   const membersById = $derived(new Map(group.members.map((m) => [m.id, m])))
   const ranked = $derived(
     goal && progress
-      ? rankBy(memberScores(group.members, goal.components, entriesInPeriod(goal, progress.today, leaderPeriod)), (s) => s.points)
+      ? rankBy(
+          memberScores(group.members, goal.components, entriesInPeriod({ ...goal, entries: creditEntries(goal) }, progress.today, leaderPeriod)),
+          (s) => s.contribution,
+        )
       : [],
   )
   const daysToStart = $derived(goal && progress ? daysBetween(progress.today, goal.startDate) : 0)
@@ -132,84 +128,9 @@
 
     <div class="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start lg:gap-4">
       <div class="flex flex-col gap-3 max-lg:contents lg:gap-4">
-        <div class="grid grid-cols-2 gap-3 max-lg:order-1 lg:gap-4">
-          <div class="rise-in rounded-card bg-card p-4 sm:p-5">
-            <div class="{TILE_LABEL} text-muted-foreground">Complete</div>
-            <div class={TILE_VALUE}>
-              <CountUp value={Math.min(1, progress.overallFraction)} format={formatPercent} />
-            </div>
-          </div>
-          <div class="rise-in rounded-card bg-highlight p-4 text-highlight-foreground [animation-delay:60ms] sm:p-5">
-            {#if progress.complete}
-              <div class="{TILE_LABEL} opacity-70">Goal</div>
-              <div class={TILE_VALUE}>Done <TallyGlyph class="size-8 self-center" draw /></div>
-            {:else if progress.phase === 'active'}
-              <div class="{TILE_LABEL} opacity-70">{progress.daysAhead >= 0 ? 'Ahead of pace' : 'Behind pace'}</div>
-              <div class={TILE_VALUE}>
-                <CountUp value={roundDays(progress.daysAhead)} format={(n) => formatNumber(Math.round(n * 10) / 10)} />
-                <span class={TILE_UNIT}>{dayWord(roundDays(progress.daysAhead))}</span>
-              </div>
-            {:else if progress.phase === 'upcoming'}
-              <div class="{TILE_LABEL} opacity-70">Starts in</div>
-              <div class={TILE_VALUE}>{daysToStart}<span class={TILE_UNIT}>{dayWord(daysToStart)}</span></div>
-            {:else}
-              <div class="{TILE_LABEL} opacity-70">Final result</div>
-              <div class={TILE_VALUE}>{formatPercent(progress.overallFraction)}</div>
-            {/if}
-          </div>
+        <div class="max-lg:order-1">
+          <GoalProgressCard {goal} {progress} memberCount={group.members.length} {daysToStart} />
         </div>
-
-        <section class="rise-in rounded-card bg-card p-4 [animation-delay:120ms] max-lg:order-2 sm:p-5" aria-label="Group goal">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <h2 class="font-semibold tracking-tight">Group goal</h2>
-            {#if progress.phase === 'active'}
-              <span class="flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                <span class="size-1.5 rounded-full bg-current"></span>
-                {progress.daysLeft === 1 ? 'Last day' : `${progress.daysLeft} days left`}
-              </span>
-            {/if}
-          </div>
-          <ul class="flex flex-col gap-4">
-            {#each showAllComponents || progress.components.length <= COMPONENT_PREVIEW + 1 ? progress.components : progress.components.slice(0, COMPONENT_PREVIEW) as item (item.component.id)}
-              {@const done = item.total >= item.component.target}
-              <li class="flex flex-col gap-2">
-                <div class="flex items-baseline justify-between gap-3 text-sm">
-                  <span class="font-medium">{item.component.name}</span>
-                  <span class="tabular text-muted-foreground">
-                    {formatNumber(item.total)} / {formatAmount(item.component.target, item.component.unit)}
-                  </span>
-                </div>
-                <HatchTrack
-                  value={item.fraction}
-                  expected={progress.phase === 'active' ? progress.elapsedFraction : null}
-                  label="{item.component.name} progress"
-                />
-                {#if done}
-                  <span class="text-xs text-muted-foreground">Target reached · {formatPercent(item.fraction)}</span>
-                {:else if progress.phase === 'active'}
-                  <span class="flex justify-between gap-3 text-xs text-muted-foreground">
-                    <span>
-                      <span class="tabular font-medium text-foreground">{formatAmount(Math.abs(item.aheadBy), item.component.unit)}</span>
-                      {item.aheadBy >= 0 ? 'ahead of' : 'behind'} pace
-                    </span>
-                    <span class="tabular">{formatNumber(item.neededPerDay / group.members.length)}/day{group.members.length > 1 ? ' each' : ''} to finish</span>
-                  </span>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-          {#if progress.components.length > COMPONENT_PREVIEW + 1}
-            <Button variant="secondary" size="sm" class="mt-4 w-full" onclick={() => (showAllComponents = !showAllComponents)}>
-              {showAllComponents ? 'Show fewer' : `Show all ${progress.components.length} activities`}
-            </Button>
-          {/if}
-          {#if progress.phase === 'active' && !progress.complete}
-            <p class="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-              <span class="h-3 w-0.5 rounded-full bg-foreground"></span>
-              Where the group should be today
-            </p>
-          {/if}
-        </section>
 
         <section class="rise-in rounded-card bg-card p-4 [animation-delay:180ms] max-lg:order-4 sm:p-5" aria-label="Leaderboard">
           <div class="mb-3 flex items-center justify-between gap-3">
@@ -227,7 +148,7 @@
                 <div class="min-w-0 flex-1">
                   <MemberNameLine member={row.item.member} label={isMe ? 'You' : row.item.member.name} crowns={goal.crowns} showTitle={!!group.achievementsEnabled} class="text-sm" />
                 </div>
-                <span class="tabular shrink-0 text-sm font-semibold">{formatPoints(row.value)}</span>
+                <span class="tabular shrink-0 text-sm font-semibold">{formatShare(row.value)}</span>
               </li>
             {/each}
           </ol>

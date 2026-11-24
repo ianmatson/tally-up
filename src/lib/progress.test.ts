@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Component, Entry, Member } from '$shared/api'
-import { balancedWeight, cumulativeByMember, dateRange, goalProgress, memberScores, periodRange, rankBy } from './progress'
+import { creditEntries, cumulativeByMember, dailyGroupProgress, dateRange, goalProgress, memberScores, periodRange, rankBy } from './progress'
 
-const pushups: Component = { id: 'p', name: 'Pushups', unit: 'reps', target: 10000, weight: 0.1 }
-const miles: Component = { id: 'm', name: 'Run', unit: 'miles', target: 50, weight: 20 }
+const pushups: Component = { id: 'p', name: 'Pushups', unit: 'reps', target: 10000, weight: 50 }
+const miles: Component = { id: 'm', name: 'Run', unit: 'miles', target: 50, weight: 50 }
 const period = { startDate: '2026-12-01', endDate: '2026-12-31' }
 const goal = (components: Component[], entries: Entry[] = []) => ({ ...period, components, entries })
 
@@ -22,7 +22,7 @@ const entry = (userId: string, componentId: string, amount: number, date = '2026
 })
 
 describe('goalProgress', () => {
-  it('reports days behind from the points-weighted overall progress', () => {
+  it('reports days behind from the weighted overall progress', () => {
     const noonDec16 = new Date('2026-12-16T12:00:00Z')
     const progress = goalProgress(goal([pushups, miles], [entry('a', 'p', 5000), entry('a', 'm', 10)]), 'UTC', noonDec16)
 
@@ -63,6 +63,15 @@ describe('goalProgress', () => {
   })
 })
 
+describe('dailyGroupProgress', () => {
+  it('tracks weighted, capped group progress for each day through today', () => {
+    const entries = [entry('a', 'p', 5000, '2026-12-01'), entry('b', 'm', 100, '2026-12-03'), entry('a', 'p', 9000, '2026-12-03')]
+    expect(dailyGroupProgress(goal([pushups, miles], entries), '2026-12-04')).toEqual([0.25, 0.25, 1, 1])
+    expect(dailyGroupProgress(goal([pushups, miles], entries), '2026-11-30')).toEqual([])
+    expect(dailyGroupProgress(goal([pushups, miles], entries), '2027-01-09')).toHaveLength(31)
+  })
+})
+
 describe('memberScores and rankBy', () => {
   const members: Member[] = [
     { id: 'a', name: 'Ana', avatarUrl: null, joinedAt: 0 },
@@ -70,27 +79,40 @@ describe('memberScores and rankBy', () => {
     { id: 'c', name: 'Cy', avatarUrl: null, joinedAt: 0 },
   ]
 
-  it('ranks by weighted points, so hard components count for more', () => {
-    const tinyPushupGoal = { ...pushups, target: 10, weight: balancedWeight(10) }
-    const hugeRunGoal = { ...miles, target: 1000, weight: balancedWeight(1000) }
-    const scores = memberScores(members, [tinyPushupGoal, hugeRunGoal], [entry('a', 'p', 10), entry('b', 'm', 1000)])
-    const board = rankBy(scores, (s) => s.points)
+  const score = (components: Component[], entries: Entry[]) =>
+    rankBy(memberScores(members, components, creditEntries(goal(components, entries))), (s) => s.contribution)
+
+  it('ranks by share of the goal, so each component counts by its weight rather than its size', () => {
+    const tinyPushupGoal = { ...pushups, target: 10, weight: 1 }
+    const hugeRunGoal = { ...miles, target: 1000, weight: 1 }
+    const board = score([tinyPushupGoal, hugeRunGoal], [entry('a', 'p', 10), entry('b', 'm', 1000)])
 
     expect(board.map((r) => [r.item.member.id, r.value, r.rank])).toEqual([
-      ['a', 1000, 1],
-      ['b', 1000, 1],
+      ['a', 0.5, 1],
+      ['b', 0.5, 1],
       ['c', 0, 3],
     ])
   })
 
-  it('reports each member share of the group points and per-component breakdown', () => {
-    const scores = memberScores(members, [pushups, miles], [entry('a', 'p', 300), entry('a', 'm', 3), entry('b', 'p', 300)])
-    const board = rankBy(scores, (s) => s.points)
-    expect(board[0].item.member.id).toBe('a')
-    expect(board[0].value).toBeCloseTo(90)
-    expect(board[0].share).toBeCloseTo(0.75)
-    expect(board[0].item.byComponent.m).toEqual({ amount: 3, points: 60 })
-    expect(board[1].share).toBeCloseTo(0.25)
+  it('credits only logs that fill a component target, in date order', () => {
+    const smallPushups = { ...pushups, target: 100, weight: 75 }
+    const smallRun = { ...miles, target: 10, weight: 25 }
+    const entries = [
+      entry('c', 'p', 10, '2026-12-03'),
+      entry('b', 'p', 60, '2026-12-02'),
+      entry('a', 'p', 60, '2026-12-01'),
+      entry('a', 'm', 5, '2026-12-01'),
+      entry('c', 'm', 5, '2026-11-30'),
+    ]
+    const board = score([smallPushups, smallRun], entries)
+
+    expect(board.map((r) => [r.item.member.id, r.value])).toEqual([
+      ['a', 0.575],
+      ['b', expect.closeTo(0.3)],
+      ['c', 0],
+    ])
+    expect(board[1].item.byComponent.p).toEqual({ amount: 60, contribution: expect.closeTo(0.3) })
+    expect(board.reduce((sum, r) => sum + r.value, 0)).toBeCloseTo(goalProgress(goal([smallPushups, smallRun], entries), 'UTC').overallFraction)
   })
 })
 

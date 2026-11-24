@@ -10,10 +10,10 @@
   import { Button } from '$lib/components/ui/button'
   import { Input } from '$lib/components/ui/input'
   import { Label } from '$lib/components/ui/label'
-  import { formatPoints } from '$lib/format'
-  import { balancedWeight, BALANCED_COMPONENT_POINTS } from '$lib/progress'
+  import { formatNumber } from '$lib/format'
 
   const DEFAULT_GOAL_DAYS = 30
+  const WHOLE_GOAL = 100
 
   let { initial, today, submitLabel, pending, onSubmit }: {
     initial: GoalDetail | null
@@ -29,6 +29,7 @@
 
   function initialRows(): Row[] {
     if (!initial) return [blankRow()]
+    const evenlySplit = new Set(initial.components.map((c) => c.weight)).size === 1
     return initial.components.map((c) => ({
       key: c.id,
       id: c.id,
@@ -36,7 +37,7 @@
       unit: c.unit,
       target: String(c.target),
       weight: String(c.weight),
-      autoWeight: c.weight === balancedWeight(c.target),
+      autoWeight: evenlySplit,
     }))
   }
 
@@ -52,34 +53,37 @@
   let endDate = $state(defaults.endDate)
   let rows = $state(defaults.rows)
   let removedComponentIds = $state<string[]>([])
+  const totalWeight = $derived(rows.reduce((sum, row) => sum + (Number(row.weight) || 0), 0))
+
+  function splitRemainder() {
+    const auto = rows.filter((row) => row.autoWeight)
+    const fixed = rows.filter((row) => !row.autoWeight).reduce((sum, row) => sum + (Number(row.weight) || 0), 0)
+    const each = fixed < WHOLE_GOAL ? (WHOLE_GOAL - fixed) / auto.length : WHOLE_GOAL / rows.length
+    for (const row of auto) row.weight = String(Math.round(each * 100) / 100)
+  }
+  splitRemainder()
+
+  function addRow() {
+    rows.push(blankRow())
+    splitRemainder()
+  }
 
   function removeRow(index: number) {
     const [row] = rows.splice(index, 1)
     if (row.id) removedComponentIds.push(row.id)
-  }
-
-  function setTarget(row: Row, value: string) {
-    row.target = value
-    const target = Number(value)
-    if (row.autoWeight && target > 0) row.weight = String(balancedWeight(target))
+    splitRemainder()
   }
 
   function setWeight(row: Row, value: string) {
     row.weight = value
     row.autoWeight = false
+    splitRemainder()
   }
 
-  function balanceAll() {
-    for (const row of rows) {
-      const target = Number(row.target)
-      if (target > 0) {
-        row.weight = String(balancedWeight(target))
-        row.autoWeight = true
-      }
-    }
+  function splitEvenly() {
+    for (const row of rows) row.autoWeight = true
+    splitRemainder()
   }
-
-  const completionPoints = (row: Row) => Number(row.target) * Number(row.weight)
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
@@ -120,11 +124,11 @@
     <div class="flex items-end justify-between gap-2">
       <div>
         <h3 class="text-sm font-medium">Components</h3>
-        <p class="text-xs text-muted-foreground">Points per unit sets each component's value on the leaderboard.</p>
+        <p class="text-xs text-muted-foreground">Each component is worth a share of the goal, whatever its target.</p>
       </div>
-      <Button variant="outline" size="sm" onclick={balanceAll}>
+      <Button variant="outline" size="sm" onclick={splitEvenly}>
         <ScaleIcon />
-        Balance
+        Split evenly
       </Button>
     </div>
 
@@ -152,7 +156,7 @@
               min="0"
               step="any"
               value={row.target}
-              oninput={(e) => setTarget(row, e.currentTarget.value)}
+              oninput={(e) => (row.target = e.currentTarget.value)}
               required
             />
           </div>
@@ -161,7 +165,7 @@
             <Input id="unit-{row.key}" maxlength={LIMITS.unit} bind:value={row.unit} required />
           </div>
           <div class="flex flex-col gap-1">
-            <Label class="text-xs text-muted-foreground" for="weight-{row.key}">Pts / unit</Label>
+            <Label class="text-xs text-muted-foreground" for="weight-{row.key}">% of goal</Label>
             <Input
               id="weight-{row.key}"
               type="number"
@@ -177,22 +181,22 @@
         {#if row.unit.trim()}
           <p class="text-xs text-muted-foreground">Shows as {formatAmount(1, row.unit.trim())} · {formatAmount(Number(row.target) > 1 ? Number(row.target) : 10, row.unit.trim())}</p>
         {/if}
-        {#if completionPoints(row) > 0}
-          <p class="text-xs text-muted-foreground">
-            Worth {formatPoints(completionPoints(row))} pts when complete
-            {#if row.autoWeight}· balanced at {formatPoints(BALANCED_COMPONENT_POINTS)}{/if}
-          </p>
-        {/if}
       </div>
     {/each}
 
     {#if rows.length < LIMITS.components}
-      <Button variant="outline" onclick={() => rows.push(blankRow())}>
+      <Button variant="outline" onclick={addRow}>
         <PlusIcon />
         Add component
       </Button>
     {/if}
   </div>
+
+  {#if Math.abs(totalWeight - WHOLE_GOAL) >= 0.1}
+    <p class="text-xs text-muted-foreground">
+      The shares add up to {formatNumber(Math.round(totalWeight * 100) / 100)}%. Each component counts in proportion to its share.
+    </p>
+  {/if}
 
   {#if initial}
     <p class="text-xs text-muted-foreground">Removing a component also deletes everything logged against it.</p>

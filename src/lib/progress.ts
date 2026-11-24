@@ -1,7 +1,6 @@
 import type { Component, Entry, GoalDetail, Member } from '$shared/api'
 import { addDays, DAY_MS, dateMs, daysBetween, lastLoggableDate, todayIn, wallClockMs } from '$shared/dates'
 
-export const BALANCED_COMPONENT_POINTS = 1000
 const RECENT_DAYS = 7
 
 export type Period = 'all' | 'recent'
@@ -18,7 +17,11 @@ export function periodRange(goal: Pick<GoalDetail, 'startDate' | 'endDate'>, tod
   return { start, end }
 }
 
-export function entriesInPeriod(goal: Pick<GoalDetail, 'startDate' | 'endDate' | 'entries'>, today: string, period: Period): Entry[] {
+export function entriesInPeriod<E extends Entry>(
+  goal: Pick<GoalDetail, 'startDate' | 'endDate'> & { entries: E[] },
+  today: string,
+  period: Period,
+): E[] {
   if (period === 'all') return goal.entries
   const { start } = periodRange(goal, today, period)
   return goal.entries.filter((e) => e.date >= start)
@@ -30,11 +33,11 @@ export function dateRange(start: string, end: string): string[] {
   return days
 }
 
-export function cumulativeByMember(
+export function cumulativeByMember<E extends Entry>(
   members: Member[],
-  entries: Entry[],
+  entries: E[],
   days: string[],
-  valueOf: (entry: Entry) => number,
+  valueOf: (entry: E) => number,
 ): Map<string, number[]> {
   const dayIndex = new Map(days.map((d, i) => [d, i]))
   const daily = new Map(members.map((m) => [m.id, new Array<number>(days.length).fill(0)]))
@@ -49,8 +52,34 @@ export function cumulativeByMember(
   return daily
 }
 
-export function balancedWeight(target: number): number {
-  return Number((BALANCED_COMPONENT_POINTS / target).toPrecision(4))
+export function componentShares(components: Component[]): Map<string, number> {
+  const totalWeight = components.reduce((sum, c) => sum + c.weight, 0)
+  return new Map(components.map((c) => [c.id, totalWeight > 0 ? c.weight / totalWeight : 0]))
+}
+
+export type CreditedEntry = Entry & { contribution: number }
+
+const chronologically = (a: Entry, b: Entry) =>
+  a.date.localeCompare(b.date) || a.occurredAt - b.occurredAt || a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+
+type GoalWindow = Pick<GoalDetail, 'startDate' | 'endDate'>
+const inWindow = (goal: GoalWindow, entry: Entry) => entry.date >= goal.startDate && entry.date <= goal.endDate
+
+export function creditEntries(goal: GoalWindow & Pick<GoalDetail, 'components' | 'entries'>): CreditedEntry[] {
+  const { components, entries } = goal
+  const shares = componentShares(components)
+  const targets = new Map(components.map((c) => [c.id, c.target]))
+  const loggedSoFar = new Map<string, number>()
+  const contributions = new Map<string, number>()
+  for (const entry of entries.filter((e) => inWindow(goal, e)).sort(chronologically)) {
+    const target = targets.get(entry.componentId)
+    if (target === undefined) continue
+    const before = loggedSoFar.get(entry.componentId) ?? 0
+    loggedSoFar.set(entry.componentId, before + entry.amount)
+    const counted = Math.max(0, Math.min(entry.amount, target - before))
+    contributions.set(entry.id, (counted / target) * shares.get(entry.componentId)!)
+  }
+  return entries.map((entry) => ({ ...entry, contribution: contributions.get(entry.id) ?? 0 }))
 }
 
 export type ComponentProgress = {
@@ -76,13 +105,11 @@ export type GoalProgress = {
 
 const FLOAT_PRECISION = 1e6
 
-export const targetPoints = (components: Component[]) => components.reduce((sum, c) => sum + c.target * c.weight, 0)
-
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
 
-function totalsByComponent(entries: Entry[]): Map<string, number> {
+function totalsByComponent(goal: GoalWindow & { entries: Entry[] }): Map<string, number> {
   const totals = new Map<string, number>()
-  for (const entry of entries) totals.set(entry.componentId, (totals.get(entry.componentId) ?? 0) + entry.amount)
+  for (const entry of goal.entries.filter((e) => inWindow(goal, e))) totals.set(entry.componentId, (totals.get(entry.componentId) ?? 0) + entry.amount)
   for (const [id, total] of totals) totals.set(id, Math.round(total * FLOAT_PRECISION) / FLOAT_PRECISION)
   return totals
 }
@@ -99,13 +126,13 @@ export function goalProgress(
   const dayNumber = Math.min(totalDays, Math.max(0, daysBetween(goal.startDate, today) + 1))
   const daysLeft = phase === 'upcoming' ? totalDays : Math.max(0, daysBetween(today, goal.endDate) + 1)
 
-  const totals = totalsByComponent(goal.entries)
-  let earnedPoints = 0
-  const possiblePoints = targetPoints(goal.components)
+  const totals = totalsByComponent(goal)
+  const shares = componentShares(goal.components)
+  let overallFraction = 0
   const components = goal.components.map<ComponentProgress>((component) => {
     const total = totals.get(component.id) ?? 0
     const remaining = Math.max(0, component.target - total)
-    earnedPoints += Math.min(total, component.target) * component.weight
+    overallFraction += clamp01(total / component.target) * shares.get(component.id)!
     return {
       component,
       total,
@@ -115,7 +142,6 @@ export function goalProgress(
     }
   })
 
-  const overallFraction = possiblePoints > 0 ? earnedPoints / possiblePoints : 0
   return {
     phase,
     today,
@@ -130,27 +156,42 @@ export function goalProgress(
   }
 }
 
-export type MemberScore = {
-  member: Member
-  points: number
-  byComponent: Record<string, { amount: number; points: number }>
+export function dailyGroupProgress(goal: Pick<GoalDetail, 'startDate' | 'endDate' | 'components' | 'entries'>, today: string): number[] {
+  if (today < goal.startDate) return []
+  const days = dateRange(goal.startDate, lastLoggableDate(goal.endDate, today))
+  const shares = componentShares(goal.components)
+  const loggedByDay = new Map(days.map((day) => [day, new Map<string, number>()]))
+  for (const entry of goal.entries) {
+    const day = loggedByDay.get(entry.date)
+    if (day && shares.has(entry.componentId)) day.set(entry.componentId, (day.get(entry.componentId) ?? 0) + entry.amount)
+  }
+  const cumulative = new Map<string, number>()
+  return days.map((day) => {
+    for (const [id, amount] of loggedByDay.get(day)!) cumulative.set(id, (cumulative.get(id) ?? 0) + amount)
+    return goal.components.reduce((sum, c) => sum + clamp01((cumulative.get(c.id) ?? 0) / c.target) * shares.get(c.id)!, 0)
+  })
 }
 
-export function memberScores(members: Member[], components: Component[], entries: Entry[]): MemberScore[] {
-  const weights = new Map(components.map((c) => [c.id, c.weight]))
+export type MemberScore = {
+  member: Member
+  contribution: number
+  byComponent: Record<string, { amount: number; contribution: number }>
+}
+
+export function memberScores(members: Member[], components: Component[], entries: CreditedEntry[]): MemberScore[] {
   const scores = new Map<string, MemberScore>(
     members.map((member) => [
       member.id,
-      { member, points: 0, byComponent: Object.fromEntries(components.map((c) => [c.id, { amount: 0, points: 0 }])) },
+      { member, contribution: 0, byComponent: Object.fromEntries(components.map((c) => [c.id, { amount: 0, contribution: 0 }])) },
     ]),
   )
   for (const entry of entries) {
     const score = scores.get(entry.userId)
-    const weight = weights.get(entry.componentId)
-    if (!score || weight === undefined) continue
-    score.points += entry.amount * weight
-    score.byComponent[entry.componentId].amount += entry.amount
-    score.byComponent[entry.componentId].points += entry.amount * weight
+    const part = score?.byComponent[entry.componentId]
+    if (!score || !part) continue
+    score.contribution += entry.contribution
+    part.amount += entry.amount
+    part.contribution += entry.contribution
   }
   return [...scores.values()]
 }
