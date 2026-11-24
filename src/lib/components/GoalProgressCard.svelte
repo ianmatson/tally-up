@@ -36,7 +36,10 @@
   const lastIndex = $derived(values.length - 1)
   const index = $derived(hover ?? lastIndex)
   const dayEnd = (i: number) => (i === lastIndex && progress.phase === 'active' ? progress.elapsedFraction * progress.totalDays : i + 1)
-  const pace = (i: number) => dayEnd(i) / progress.totalDays
+  const now = $derived(values.length ? dayEnd(lastIndex) : 0)
+  const rate = $derived(now > 0 ? values[lastIndex] / now : 0)
+  const projected = $derived(progress.phase === 'active' && !progress.complete && rate > 0 ? rate * progress.totalDays : null)
+  const finishDay = $derived(rate > 0 ? Math.min(progress.totalDays, 1 / rate) : progress.totalDays)
 
   const x = (day: number) => PAD.left + (day / progress.totalDays) * plotWidth
   const y = (fraction: number) => PAD.top + plotHeight - Math.min(1, fraction) * plotHeight
@@ -61,7 +64,7 @@
           'aria-valuemin': 0,
           'aria-valuemax': lastIndex,
           'aria-valuenow': index,
-          'aria-valuetext': `${formatDate(addDays(goal.startDate, index))}: ${formatShare(values[index])} complete, pace ${formatShare(pace(index))}`,
+          'aria-valuetext': `${formatDate(addDays(goal.startDate, index))}: ${formatShare(values[index])} complete`,
         }
       : { role: 'img', 'aria-label': 'Group progress chart. No progress yet.' },
   )
@@ -124,7 +127,9 @@
           <text x={PAD.left + plotWidth} y={height - 6} text-anchor="end" class="fill-muted-foreground text-[11px]">{formatDate(goal.endDate)}</text>
         {/if}
 
-        <line x1={x(0)} y1={y(0)} x2={x(progress.totalDays)} y2={y(1)} stroke="var(--muted-foreground)" stroke-width="1.5" stroke-dasharray="4 5" opacity="0.6" />
+        {#if projected !== null}
+          <line x1={x(now)} y1={y(values[lastIndex])} x2={x(finishDay)} y2={y(rate * finishDay)} stroke="var(--muted-foreground)" stroke-width="1.5" stroke-dasharray="4 5" opacity="0.6" />
+        {/if}
 
         {#if values.length}
           <path d={area} fill="url(#goal-area)" class="goal-area" />
@@ -134,7 +139,6 @@
 
         {#if hover !== null}
           <line x1={x(dayEnd(index))} x2={x(dayEnd(index))} y1={PAD.top} y2={PAD.top + plotHeight} stroke="var(--foreground)" stroke-width="1" opacity="0.3" />
-          <circle cx={x(dayEnd(index))} cy={y(pace(index))} r="3" fill="var(--muted-foreground)" />
         {/if}
       </svg>
 
@@ -146,15 +150,16 @@
         >
           <div class="text-xs text-muted-foreground">{formatDate(addDays(goal.startDate, index))}</div>
           <div class="tabular font-semibold">{formatShare(values[index])} complete</div>
-          <div class="tabular text-xs text-muted-foreground">Pace {formatShare(pace(index))}</div>
         </div>
       {/if}
     {/if}
   </div>
-  <p class="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-    <span class="w-3 border-t-[1.5px] border-dashed border-muted-foreground"></span>
-    Pace to finish on time
-  </p>
+  {#if projected !== null}
+    <p class="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+      <span class="w-3 border-t-[1.5px] border-dashed border-muted-foreground"></span>
+      {projected >= 1 ? `At this pace, the group finishes ${formatDate(addDays(goal.startDate, Math.ceil(finishDay) - 1))}` : `At this pace, the group reaches ${formatPercent(projected)}`}
+    </p>
+  {/if}
 
   <button
     type="button"
