@@ -1,5 +1,5 @@
 import { achievementStatements, GROUP_TITLES_SQL, EQUIP_TITLE_SQL } from './achievements'
-import { TITLES, type EarnedTitle, type Crown, type CrownRecord } from '../shared/achievements'
+import { TITLES, type EarnedTitle } from '../shared/achievements'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
@@ -305,7 +305,7 @@ type EntryRow = Omit<Entry, 'reactions' | 'comments'>
 
 async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Promise<GoalDetail> {
   const refresh = achievementStatements(db, goalId)
-  const [access, components, entries, reactions, comments, crowns, records] = (await db.batch([
+  const [access, components, entries, reactions, comments] = (await db.batch([
     ...refresh,
     db.prepare(MEMBER_GOAL_SQL).bind(uid, goalId),
     db.prepare('SELECT id, name, unit, target, weight FROM components WHERE goal_id = ? ORDER BY position').bind(goalId),
@@ -327,8 +327,6 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
          JOIN entries e ON e.id = c.entry_id WHERE e.goal_id = ? ORDER BY c.created_at`,
       )
       .bind(goalId),
-    db.prepare('SELECT category, user_id AS userId, total FROM goal_crowns WHERE goal_id = ?').bind(goalId),
-    db.prepare('SELECT category, user_id AS userId, earned_at AS earnedAt FROM crown_records WHERE goal_id = ?').bind(goalId),
   ])).slice(refresh.length)
   const goal = (access.results[0] as GoalRow | undefined) ?? notFound()
   const commentsByEntry = new Map<string, Comment[]>()
@@ -345,8 +343,6 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
   }
   return {
     ...toGoalSummary(goal),
-    crowns: crowns.results as Crown[],
-    crownRecords: records.results as CrownRecord[],
     components: components.results as Component[],
     entries: (entries.results as EntryRow[]).map((entry) => ({
       ...entry,

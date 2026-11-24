@@ -1,4 +1,4 @@
-import type { Crown, CrownRecord, EarnedTitle, TitleId } from './achievements'
+import type { EarnedTitle, TitleId } from './achievements'
 
 export type User = {
   id: string
@@ -98,8 +98,6 @@ export type PushSubscriptionInput = {
 export type GoalDetail = GoalSummary & {
   components: Component[]
   entries: Entry[]
-  crowns?: Crown[]
-  crownRecords?: CrownRecord[]
 }
 
 export type ComponentInput = {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GoalDetail, GroupDetail, User } from '$shared/api'
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
+  import { crownTallies } from '$lib/crowns'
   import CrownBadge from './CrownBadge.svelte'
   import MemberHonors from './MemberHonors.svelte'
   import { expand } from '$lib/motion'
@@ -18,6 +19,7 @@
   let expanded = $state<string | null>(null)
   $effect(() => { if (open) expanded = user.id })
 
+  const crowns = $derived(goal ? crownTallies(goal, today) : new Map())
   const hasHonors = $derived(!!goal || !!group.achievementsEnabled)
   const joined = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 </script>
@@ -32,7 +34,7 @@
       </Drawer.Header>
       <ul class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4">
         {#each group.members as member (member.id)}
-          {@const crownCount = goal?.crowns?.filter((c) => c.userId === member.id).length ?? 0}
+          {@const crownCount = crowns.get(member.id)?.total ?? 0}
           {@const isOpen = hasHonors && expanded === member.id}
           <li>
             <button

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { toast } from 'svelte-sonner'
-  import { CROWNS, formatCrownTotal, titleName, type TitleId } from '$shared/achievements'
+  import { titleName, type TitleId } from '$shared/achievements'
   import { api } from '$lib/api'
   import { queryClient } from '$lib/queries'
   import { createQuery } from '@tanstack/svelte-query'
@@ -90,9 +90,7 @@
 
   // Baseline the first response without celebrating historical/backfilled awards.
   let titleBaseline: Set<string> | undefined
-  let crownBaseline: Set<string> | undefined
   let awardsGroup = ''
-  let awardsGoal = ''
   $effect(() => {
     const data = group.data
     if (!data) return
@@ -111,20 +109,6 @@
       }
     }
     titleBaseline = new Set(earned.map((t) => t.titleId))
-  })
-  $effect(() => {
-    const data = currentGoal.data
-    if (!data) return
-    if (awardsGoal !== data.id) { awardsGoal = data.id; crownBaseline = undefined }
-    const crowns = data.crowns?.filter((c) => c.userId === user.id) ?? []
-    if (crownBaseline) {
-      for (const crown of crowns.filter((c) => !crownBaseline!.has(c.category))) {
-        toast.success(`You claimed ${CROWNS[crown.category].name}!`, {
-          description: formatCrownTotal(crown.category, crown.total),
-        })
-      }
-    }
-    crownBaseline = new Set(crowns.map((c) => c.category))
   })
 
   const navItems = $derived(

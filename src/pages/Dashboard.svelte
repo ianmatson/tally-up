@@ -14,6 +14,7 @@
   import { formatDays, formatMembers, formatNumber, formatShare } from '$lib/format'
   import { greeting } from '$lib/greeting'
   import { personalGoals } from '$lib/personal-goals'
+  import { crownTallies } from '$lib/crowns'
   import { creditEntries, entriesInPeriod, goalProgress, memberScores, type Period, PERIOD_OPTIONS, rankBy } from '$lib/progress'
 
   const ACTIVITY_PREVIEW = 5
@@ -44,6 +45,7 @@
         )
       : [],
   )
+  const crowns = $derived(goal && progress ? crownTallies(goal, progress.today) : new Map())
   const daysToStart = $derived(goal && progress ? daysBetween(progress.today, goal.startDate) : 0)
   const leaderRows = $derived.by(() => {
     const top = ranked.slice(0, LEADER_PREVIEW)
@@ -146,7 +148,7 @@
                 <span class="tabular w-4 text-center text-xs font-medium text-muted-foreground">{row.rank}</span>
                 <UserAvatar name={row.item.member.name} avatarUrl={row.item.member.avatarUrl} size="sm" tone={isMe ? 'highlight' : 'muted'} />
                 <div class="min-w-0 flex-1">
-                  <MemberNameLine member={row.item.member} label={isMe ? 'You' : row.item.member.name} crowns={goal.crowns} showTitle={!!group.achievementsEnabled} class="text-sm" />
+                  <MemberNameLine member={row.item.member} label={isMe ? 'You' : row.item.member.name} crowns={crowns.get(row.item.member.id)?.total} showTitle={!!group.achievementsEnabled} class="text-sm" />
                 </div>
                 <span class="tabular shrink-0 text-sm font-semibold">{formatShare(row.value)}</span>
               </li>
