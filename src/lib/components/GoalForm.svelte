@@ -1,9 +1,11 @@
 <script lang="ts">
   import { formatAmount } from '$shared/units'
+  import GripVerticalIcon from '@lucide/svelte/icons/grip-vertical'
   import PlusIcon from '@lucide/svelte/icons/plus'
   import ScaleIcon from '@lucide/svelte/icons/scale'
   import Trash2Icon from '@lucide/svelte/icons/trash-2'
-  import { untrack } from 'svelte'
+  import { tick, untrack } from 'svelte'
+  import { flip } from 'svelte/animate'
   import type { GoalDetail, GoalInput } from '$shared/api'
   import { addDays, isIsoDate } from '$shared/dates'
   import { LIMITS } from '$shared/limits'
@@ -11,6 +13,8 @@
   import { Input } from '$lib/components/ui/input'
   import { Label } from '$lib/components/ui/label'
   import { formatNumber } from '$lib/format'
+  import { MOVE_MS, prefersReducedMotion } from '$lib/motion'
+  import { cn } from '$lib/utils'
 
   const DEFAULT_GOAL_DAYS = 30
   const WHOLE_GOAL = 100
@@ -86,6 +90,67 @@
     splitRemainder()
   }
 
+  let list: HTMLElement
+  let dragKey = $state<string | null>(null)
+  let dragOffset = $state(0)
+  let dragOrigin = 0
+  let dragPointer = -1
+
+  function moveRow(from: number, to: number) {
+    const [row] = rows.splice(from, 1)
+    rows.splice(to, 0, row)
+  }
+
+  function startDrag(event: PointerEvent & { currentTarget: HTMLElement }, row: Row) {
+    if (dragKey) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragPointer = event.pointerId
+    dragKey = row.key
+    dragOrigin = event.clientY
+    dragOffset = 0
+  }
+
+  function drag(event: PointerEvent) {
+    if (!dragKey || event.pointerId !== dragPointer) return
+    const index = rows.findIndex((row) => row.key === dragKey)
+    const elements = [...list.querySelectorAll<HTMLElement>('[data-row]')]
+    const [previous, current, next] = [elements[index - 1], elements[index], elements[index + 1]]
+    const offset = event.clientY - dragOrigin
+    const down = next ? next.offsetTop + next.offsetHeight - (current.offsetTop + current.offsetHeight) : 0
+    const up = previous ? current.offsetTop - previous.offsetTop : 0
+    if (next && offset > down / 2) {
+      dragOrigin += down
+      moveRow(index, index + 1)
+    } else if (previous && offset < -up / 2) {
+      dragOrigin -= up
+      moveRow(index, index - 1)
+    } else {
+      const [first, last] = [elements[0], elements.at(-1)!]
+      const highest = first.offsetTop - current.offsetTop
+      const lowest = last.offsetTop + last.offsetHeight - (current.offsetTop + current.offsetHeight)
+      dragOffset = Math.min(lowest, Math.max(highest, offset))
+      return
+    }
+    dragOffset = event.clientY - dragOrigin
+  }
+
+  function endDrag(event: PointerEvent) {
+    if (event.pointerId !== dragPointer) return
+    dragPointer = -1
+    dragKey = null
+    dragOffset = 0
+  }
+
+  async function nudge(event: KeyboardEvent, index: number) {
+    const to = index + (event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0)
+    if (to === index || to < 0 || to >= rows.length) return
+    event.preventDefault()
+    const key = rows[index].key
+    moveRow(index, to)
+    await tick()
+    list.querySelector<HTMLElement>(`[data-handle="${key}"]`)?.focus()
+  }
+
   function submit(event: SubmitEvent) {
     event.preventDefault()
     onSubmit({
@@ -125,7 +190,7 @@
     <div class="flex items-end justify-between gap-2">
       <div>
         <h3 class="text-sm font-medium">Components</h3>
-        <p class="text-xs text-muted-foreground">Each component is worth a share of the goal, whatever its target.</p>
+        <p class="text-xs text-muted-foreground">Each component is worth a share of the goal, whatever its target. Drag to reorder.</p>
       </div>
       <Button variant="outline" size="sm" onclick={splitEvenly}>
         <ScaleIcon />
@@ -133,57 +198,82 @@
       </Button>
     </div>
 
-    {#each rows as row, index (row.key)}
-      <div class="flex flex-col gap-3 rounded-[16px] bg-secondary/60 p-3">
-        <div class="flex items-center gap-2">
-          <Input aria-label="Component name" placeholder="Pushups" maxlength={LIMITS.name} bind:value={row.name} required />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Remove component"
-            disabled={rows.length === 1}
-            onclick={() => removeRow(index)}
-          >
-            <Trash2Icon />
-          </Button>
+    <p id="reorder-help" class="sr-only">Drag, or press the up and down arrow keys, to move this component.</p>
+    <div class="flex flex-col gap-3" bind:this={list}>
+      {#each rows as row, index (row.key)}
+        <div
+          data-row
+          class={cn('relative flex flex-col gap-3 rounded-[16px] bg-secondary/60 p-3', dragKey === row.key ? 'z-10 bg-secondary shadow-[0_12px_32px_rgb(0_0_0/0.18)]' : 'transition-transform duration-200')}
+          style:transform={dragKey === row.key ? `translateY(${dragOffset}px)` : null}
+          animate:flip={{ duration: dragKey === row.key || prefersReducedMotion() ? 0 : MOVE_MS }}
+        >
+          <div class="flex items-center gap-2">
+            {#if rows.length > 1}
+              <button
+                type="button"
+                data-handle={row.key}
+                class="-ml-1 grid h-9 w-6 shrink-0 cursor-grab touch-none place-items-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none active:cursor-grabbing"
+                aria-label="Reorder {row.name.trim() || 'component'}"
+                aria-describedby="reorder-help"
+                onpointerdown={(event) => startDrag(event, row)}
+                onpointermove={drag}
+                onpointerup={endDrag}
+                onpointercancel={endDrag}
+              onlostpointercapture={endDrag}
+                onkeydown={(event) => nudge(event, index)}
+              >
+                <GripVerticalIcon class="size-4" />
+              </button>
+            {/if}
+            <Input aria-label="Component name" placeholder="Pushups" maxlength={LIMITS.name} bind:value={row.name} required />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Remove component"
+              disabled={rows.length === 1}
+              onclick={() => removeRow(index)}
+            >
+              <Trash2Icon />
+            </Button>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="flex flex-col gap-1">
+              <Label class="text-xs text-muted-foreground" for="target-{row.key}">Target</Label>
+              <Input
+                id="target-{row.key}"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                step="any"
+                value={row.target}
+                oninput={(e) => (row.target = e.currentTarget.value)}
+                required
+              />
+            </div>
+            <div class="flex flex-col gap-1">
+              <Label class="text-xs text-muted-foreground" for="unit-{row.key}">Unit</Label>
+              <Input id="unit-{row.key}" maxlength={LIMITS.unit} bind:value={row.unit} required />
+            </div>
+            <div class="flex flex-col gap-1">
+              <Label class="text-xs text-muted-foreground" for="weight-{row.key}">% of goal</Label>
+              <Input
+                id="weight-{row.key}"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                step="any"
+                value={row.weight}
+                oninput={(e) => setWeight(row, e.currentTarget.value)}
+                required
+              />
+            </div>
+          </div>
+          {#if row.unit.trim()}
+            <p class="text-xs text-muted-foreground">Shows as {formatAmount(1, row.unit.trim())} · {formatAmount(Number(row.target) > 1 ? Number(row.target) : 10, row.unit.trim())}</p>
+          {/if}
         </div>
-        <div class="grid grid-cols-3 gap-2">
-          <div class="flex flex-col gap-1">
-            <Label class="text-xs text-muted-foreground" for="target-{row.key}">Target</Label>
-            <Input
-              id="target-{row.key}"
-              type="number"
-              inputmode="decimal"
-              min="0"
-              step="any"
-              value={row.target}
-              oninput={(e) => (row.target = e.currentTarget.value)}
-              required
-            />
-          </div>
-          <div class="flex flex-col gap-1">
-            <Label class="text-xs text-muted-foreground" for="unit-{row.key}">Unit</Label>
-            <Input id="unit-{row.key}" maxlength={LIMITS.unit} bind:value={row.unit} required />
-          </div>
-          <div class="flex flex-col gap-1">
-            <Label class="text-xs text-muted-foreground" for="weight-{row.key}">% of goal</Label>
-            <Input
-              id="weight-{row.key}"
-              type="number"
-              inputmode="decimal"
-              min="0"
-              step="any"
-              value={row.weight}
-              oninput={(e) => setWeight(row, e.currentTarget.value)}
-              required
-            />
-          </div>
-        </div>
-        {#if row.unit.trim()}
-          <p class="text-xs text-muted-foreground">Shows as {formatAmount(1, row.unit.trim())} · {formatAmount(Number(row.target) > 1 ? Number(row.target) : 10, row.unit.trim())}</p>
-        {/if}
-      </div>
-    {/each}
+      {/each}
+    </div>
 
     {#if rows.length < LIMITS.components}
       <Button variant="outline" onclick={addRow}>
