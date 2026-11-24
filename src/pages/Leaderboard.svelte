@@ -31,6 +31,7 @@
   const PALETTE_SIZE = 8
   const VISIBLE_ROWS = 10
   const MAX_TABS = 10
+  const MIN_SHARE_SCALE = 0.01
 
   let { group, goal, today, user }: { group: GroupDetail; goal: GoalDetail | null; today: string; user: User } = $props()
 
@@ -141,6 +142,7 @@
           series={chartSeries}
           reference={evenShare}
           format={chartFormat}
+          minScale={selectedComponent ? 1 : MIN_SHARE_SCALE}
           label={chartLabel}
           focusId={hovered ?? expanded}
           highlightId={user.id}

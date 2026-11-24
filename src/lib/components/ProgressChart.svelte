@@ -5,11 +5,12 @@
 <script lang="ts">
   import { formatDate } from '$lib/format'
 
-  let { days, series, reference, format, label, focusId, highlightId }: {
+  let { days, series, reference, format, minScale, label, focusId, highlightId }: {
     days: string[]
     series: ChartSeries[]
     reference: number[] | null
     format: (n: number) => string
+    minScale: number
     label: string
     focusId: string | null
     highlightId: string
@@ -35,7 +36,7 @@
   const plotHeight = HEIGHT - PAD.top - PAD.bottom
   const last = $derived(days.length - 1)
 
-  const leader = $derived(Math.max(...series.map((s) => s.values[last])) || 1)
+  const leader = $derived(Math.max(minScale, ...series.map((s) => s.values[last])))
   const yStep = $derived(niceStep(leader / Y_TICKS))
   const yMax = $derived(Math.ceil(leader / yStep) * yStep)
   const yTicks = $derived(Array.from({ length: Math.round(yMax / yStep) + 1 }, (_, i) => yStep * i))

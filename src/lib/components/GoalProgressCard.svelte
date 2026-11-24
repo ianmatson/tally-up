@@ -157,7 +157,7 @@
   {#if projected !== null}
     <p class="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
       <span class="w-3 border-t-[1.5px] border-dashed border-muted-foreground"></span>
-      {projected >= 1 ? `At this pace, the group finishes ${formatDate(addDays(goal.startDate, Math.ceil(finishDay) - 1))}` : `At this pace, the group reaches ${formatPercent(projected)}`}
+      {projected >= 1 ? `At this pace, the group finishes ${formatDate(addDays(goal.startDate, Math.ceil(finishDay) - 1))}` : `At this pace, the group reaches ${formatPercent(Math.floor(projected * 100) / 100)}`}
     </p>
   {/if}
 
