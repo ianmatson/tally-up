@@ -15,6 +15,7 @@
   import { Button } from '$lib/components/ui/button'
   import { dayWord, formatDays, formatMembers, formatNumber, formatPercent, formatPoints, roundDays } from '$lib/format'
   import { greeting } from '$lib/greeting'
+  import { personalGoals } from '$lib/personal-goals'
   import { entriesInPeriod, goalProgress, memberScores, type Period, PERIOD_OPTIONS, rankBy } from '$lib/progress'
 
   const ACTIVITY_PREVIEW = 5
@@ -39,6 +40,7 @@
   let showAllComponents = $state(false)
 
   const progress = $derived(goal ? goalProgress(goal, group.timezone, now) : null)
+  const personalTargets = $derived(goal ? personalGoals(group, goal, user.id, now) : [])
   const componentsById = $derived(new Map(goal?.components.map((c) => [c.id, c]) ?? []))
   const membersById = $derived(new Map(group.members.map((m) => [m.id, m])))
   const ranked = $derived(
@@ -232,40 +234,58 @@
         </section>
       </div>
 
-      <section class="rise-in rounded-card bg-card p-4 [animation-delay:150ms] max-lg:order-3 sm:p-5" aria-label="Recent activity">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <a href={feedHref} class="flex items-center gap-1 font-semibold tracking-tight">
-            Recent activity <ChevronRightIcon class="size-4 text-muted-foreground" />
-          </a>
-        </div>
+      <div class="flex flex-col gap-3 max-lg:contents lg:gap-4">
+        <section class="rise-in rounded-card bg-card p-4 [animation-delay:150ms] max-lg:order-3 sm:p-5" aria-label="Recent activity">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <a href={feedHref} class="flex items-center gap-1 font-semibold tracking-tight">
+              Recent activity <ChevronRightIcon class="size-4 text-muted-foreground" />
+            </a>
+          </div>
 
-        {#if goal.entries.length === 0}
-          <p class="py-6 text-center text-sm text-muted-foreground">
-            {canLog && !goal.archived ? 'Nothing logged yet. Tap + to add the first tally.' : 'Nothing was logged.'}
-          </p>
+          {#if goal.entries.length === 0}
+            <p class="py-6 text-center text-sm text-muted-foreground">
+              {canLog && !goal.archived ? 'Nothing logged yet. Tap + to add the first tally.' : 'Nothing was logged.'}
+            </p>
+          {/if}
+
+          <ul class="flex flex-col divide-y">
+            {#each goal.entries.slice(0, ACTIVITY_PREVIEW) as entry (entry.id)}
+              <li class="py-3 first:pt-0 last:pb-0">
+                <ActivityItem
+                  {entry}
+                  component={componentsById.get(entry.componentId)}
+                  goalId={goal.id}
+                  userId={user.id}
+                  {membersById}
+                  {now}
+                  compact
+                  onOpen={(focus) => onOpen(entry, focus)}
+                />
+              </li>
+            {/each}
+          </ul>
+
+          {#if goal.entries.length > ACTIVITY_PREVIEW}
+            <Button href={feedHref} variant="secondary" class="mt-4 w-full">See the full feed</Button>
+          {/if}
+        </section>
+
+        {#if personalTargets.length}
+          <section class="rise-in rounded-card bg-card p-4 [animation-delay:210ms] max-lg:order-3 sm:p-5" aria-labelledby="personal-goals-heading">
+            <h2 id="personal-goals-heading" class="font-semibold tracking-tight">Your goals</h2>
+            <p class="mt-1 text-xs text-muted-foreground">Your share of the group goal. No rollover.</p>
+            <ul class="mt-3 divide-y">
+              {#each personalTargets as target (target.label)}
+                <li class="flex items-baseline gap-2 py-3">
+                  <span class="tabular text-2xl font-semibold tracking-tight" class:text-highlight={target.remaining === 0}>{formatNumber(target.remaining)}</span>
+                  <span class="text-sm">{target.label} <span class="text-muted-foreground">left {target.period}</span></span>
+                </li>
+              {/each}
+            </ul>
+            <p class="mt-2 text-xs text-muted-foreground">Daily goals reset at midnight. Miles reset Monday. Uses the group’s timezone.</p>
+          </section>
         {/if}
-
-        <ul class="flex flex-col divide-y">
-          {#each goal.entries.slice(0, ACTIVITY_PREVIEW) as entry (entry.id)}
-            <li class="py-3 first:pt-0 last:pb-0">
-              <ActivityItem
-                {entry}
-                component={componentsById.get(entry.componentId)}
-                goalId={goal.id}
-                userId={user.id}
-                {membersById}
-                {now}
-                compact
-                onOpen={(focus) => onOpen(entry, focus)}
-              />
-            </li>
-          {/each}
-        </ul>
-
-        {#if goal.entries.length > ACTIVITY_PREVIEW}
-          <Button href={feedHref} variant="secondary" class="mt-4 w-full">See the full feed</Button>
-        {/if}
-      </section>
+      </div>
     </div>
   {/if}
 </div>
