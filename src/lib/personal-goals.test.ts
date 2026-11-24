@@ -52,6 +52,10 @@ describe('DG personal goals', () => {
     expect(target.target).toBeCloseTo(57.8205128)
     expect(target.remaining).toBe(8)
   })
+  it("lists activities in the goal's saved component order", () => {
+    const reordered = { ...goal, components: [goal.components[2], goal.components[0], goal.components[3], goal.components[1]] }
+    expect(personalGoals(group, reordered, 'a', now).map((t) => t.label)).toEqual(['miles', 'pushups', 'squats', 'situps'])
+  })
   it('hides for other groups, nonmembers, archived and inactive goals', () => {
     expect(personalGoals({ ...group, achievementsEnabled: false, name: 'DG (Daddy Gainz)' }, goal, 'a', now)).toEqual([])
     expect(personalGoals(group, goal, 'outsider', now)).toEqual([])
