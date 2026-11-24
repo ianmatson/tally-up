@@ -2,7 +2,6 @@ import { MutationCache, QueryCache, QueryClient, queryOptions } from '@tanstack/
 import { toast } from 'svelte-sonner'
 import type { GoalDetail, GroupDetail, GroupSummary, InvitePreview, NotificationConfig, User } from '$shared/api'
 import { api, ApiError } from './api'
-import { orderGoalActivities } from './activity-order'
 
 const MAX_RETRIES = 2
 
@@ -41,7 +40,7 @@ export const groupQuery = (groupId: string) =>
 export const allGoalsKey = ['goal'] as const
 
 export const goalQuery = (goalId: string) =>
-  queryOptions({ queryKey: ['goal', goalId], queryFn: () => api<GoalDetail>(`/goals/${goalId}`), select: orderGoalActivities })
+  queryOptions({ queryKey: ['goal', goalId], queryFn: () => api<GoalDetail>(`/goals/${goalId}`) })
 
 export const inviteQuery = (code: string) =>
   queryOptions({ queryKey: ['invite', code], queryFn: () => api<InvitePreview>(`/invites/${code}`) })

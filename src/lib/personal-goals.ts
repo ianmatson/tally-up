@@ -5,8 +5,8 @@ import { goalProgress } from './progress'
 const ACTIVITIES = [
   { label: 'pushups', names: ['pushup', 'pushups'], weekly: false },
   { label: 'situps', names: ['situp', 'situps'], weekly: false },
-  { label: 'squats', names: ['squat', 'squats'], weekly: false },
   { label: 'miles', names: ['run', 'running'], weekly: true },
+  { label: 'squats', names: ['squat', 'squats'], weekly: false },
 ] as const
 
 export function personalGoals(group: GroupDetail, goal: GoalDetail, userId: string, now: Date) {
