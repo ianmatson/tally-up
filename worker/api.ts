@@ -134,8 +134,8 @@ async function editableEntry(db: D1Database, entryId: string, uid: string): Prom
 
 function insertComponent(db: D1Database, goalId: string, comp: ComponentInput, position: number) {
   return db
-    .prepare('INSERT INTO components (id, goal_id, name, unit, target, weight, position) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .bind(crypto.randomUUID(), goalId, comp.name, comp.unit, comp.target, comp.weight, position)
+    .prepare('INSERT INTO components (id, goal_id, name, unit, target, weight, period, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(crypto.randomUUID(), goalId, comp.name, comp.unit, comp.target, comp.weight, comp.period, position)
 }
 
 export const api = new Hono<AppEnv>()
@@ -308,7 +308,7 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
   const [access, components, entries, reactions, comments] = (await db.batch([
     ...refresh,
     db.prepare(MEMBER_GOAL_SQL).bind(uid, goalId),
-    db.prepare('SELECT id, name, unit, target, weight FROM components WHERE goal_id = ? ORDER BY position').bind(goalId),
+    db.prepare('SELECT id, name, unit, target, weight, period FROM components WHERE goal_id = ? ORDER BY position').bind(goalId),
     db
       .prepare(
         `SELECT id, component_id AS componentId, user_id AS userId, amount, date, note, occurred_at AS occurredAt, created_at AS createdAt FROM entries
@@ -372,8 +372,8 @@ api.put('/goals/:goalId', async (c) => {
     ...input.components.map((comp, position) =>
       comp.id
         ? db
-            .prepare('UPDATE components SET name = ?, unit = ?, target = ?, weight = ?, position = ? WHERE id = ? AND goal_id = ?')
-            .bind(comp.name, comp.unit, comp.target, comp.weight, position, comp.id, goal.id)
+            .prepare('UPDATE components SET name = ?, unit = ?, target = ?, weight = ?, period = ?, position = ? WHERE id = ? AND goal_id = ?')
+            .bind(comp.name, comp.unit, comp.target, comp.weight, comp.period, position, comp.id, goal.id)
         : insertComponent(db, goal.id, comp, position),
     ),
   ])

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { Component, Entry } from '$shared/api'
 import { crownTallies, todaysStandings } from './crowns'
 
-const pushups: Component = { id: 'p', name: 'Pushups', unit: 'reps', target: 100, weight: 50 }
-const miles: Component = { id: 'm', name: 'Run', unit: 'miles', target: 10, weight: 50 }
+const pushups: Component = { id: 'p', name: 'Pushups', unit: 'reps', target: 100, weight: 50, period: 'day' }
+const miles: Component = { id: 'm', name: 'Run', unit: 'miles', target: 10, weight: 50, period: 'day' }
 const goal = (entries: Entry[]) => ({ startDate: '2026-12-01', endDate: '2026-12-31', components: [pushups, miles], entries })
 
 let nextId = 0

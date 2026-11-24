@@ -43,12 +43,16 @@ export type GroupDetail = {
   earnedTitles?: EarnedTitle[]
 }
 
+export const COMPONENT_PERIODS = ['day', 'week', 'month'] as const
+export type ComponentPeriod = (typeof COMPONENT_PERIODS)[number]
+
 export type Component = {
   id: string
   name: string
   unit: string
   target: number
   weight: number
+  period: ComponentPeriod
 }
 
 export type Entry = {
@@ -106,6 +110,7 @@ export type ComponentInput = {
   unit: string
   target: number
   weight: number
+  period: ComponentPeriod
 }
 
 export type GoalInput = {

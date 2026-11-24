@@ -61,7 +61,7 @@ describe('permanent titles', () => {
   it('does not combine broken streaks or different goals', () => {
     log('a', 10, '2026-11-23'); log('a', 10, '2026-11-24'); log('a', 10, '2026-11-26')
     db.exec(`INSERT INTO goals VALUES ('other', 'group', 'Other', '2026-11-23', '2026-12-31', NULL, 1);
-      INSERT INTO components VALUES ('other-push', 'other', 'Pushups', 'reps', 100, 1, 0)`)
+      INSERT INTO components (id, goal_id, name, unit, target, weight, position) VALUES ('other-push', 'other', 'Pushups', 'reps', 100, 1, 0)`)
     log('a', 10, '2026-11-25', 'other-push', 'other')
     expect(titles()).toEqual(['initiate'])
   })
@@ -96,7 +96,7 @@ function otherGroup(name = 'Another group') {
   db.prepare("INSERT INTO groups VALUES ('outside', ?, 'a', 'America/Chicago', 'outside-invite', 0)").run(name)
   db.exec(`INSERT INTO memberships VALUES ('outside', 'a', 0);
     INSERT INTO goals VALUES ('outside-goal', 'outside', 'Other goal', '2026-11-23', '2026-12-31', NULL, 0);
-    INSERT INTO components VALUES ('outside-push', 'outside-goal', 'Pushups', 'reps', 100, 1, 0);`)
+    INSERT INTO components (id, goal_id, name, unit, target, weight, position) VALUES ('outside-push', 'outside-goal', 'Pushups', 'reps', 100, 1, 0);`)
 }
 
 describe('DG-only titles', () => {
@@ -147,4 +147,9 @@ describe('DG-only titles', () => {
     expect(db.prepare('SELECT * FROM crown_records').all()).toEqual([])
     expect(db.prepare('SELECT earned_at FROM group_earned_titles').get()?.earned_at).toBe(100)
   })
+})
+
+it('backfills weekly personal goals for running in miles only', () => {
+  expect(db.prepare('SELECT id, period FROM components ORDER BY id').all())
+    .toEqual([{ id: 'km', period: 'day' }, { id: 'push', period: 'day' }, { id: 'run', period: 'week' }, { id: 'sit', period: 'day' }, { id: 'squat', period: 'day' }])
 })

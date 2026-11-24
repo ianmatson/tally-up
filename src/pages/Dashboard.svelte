@@ -5,6 +5,7 @@
   import XIcon from '@lucide/svelte/icons/x'
   import ActivityItem from '$lib/components/ActivityItem.svelte'
   import { install } from '$lib/install.svelte'
+  import { unitFor } from '$shared/units'
   import CrownRaceCard from '$lib/components/CrownRaceCard.svelte'
   import GoalProgressCard from '$lib/components/GoalProgressCard.svelte'
   import MemberNameLine from '$lib/components/MemberNameLine.svelte'
@@ -146,12 +147,14 @@
             <h2 id="personal-goals-heading" class="font-semibold tracking-tight">Your goals</h2>
             <p class="mt-1 text-xs text-muted-foreground">Your share of what the group needs to finish on time.</p>
             <ul class="mt-3 divide-y">
-              {#each personalTargets as target (target.label)}
+              {#each personalTargets as target (target.component.id)}
                 <li class="flex items-baseline gap-2 py-3">
                   <span class="tabular text-2xl font-semibold tracking-tight">
-                    <span class:text-highlight={target.remaining === 0}>{formatNumber(target.logged)}</span><span class="ml-1 text-lg font-medium text-muted-foreground">/ {formatNumber(target.target)}</span>
+                    <span class:text-highlight={target.done}>{formatNumber(target.logged)}</span><span class="ml-1 text-lg font-medium text-muted-foreground">/ {formatNumber(target.target)}</span>
                   </span>
-                  <span class="text-sm">{target.label} <span class="text-muted-foreground">{target.period}</span></span>
+                  <span class="min-w-0 text-sm">
+                    {unitFor(target.component.unit, target.target)} {target.component.name.toLowerCase()} <span class="text-muted-foreground">{target.period}</span>
+                  </span>
                 </li>
               {/each}
             </ul>

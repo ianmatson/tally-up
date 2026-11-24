@@ -1,5 +1,5 @@
 import { HTTPException } from 'hono/http-exception'
-import type { ComponentInput, EntryInput, GoalInput, PushSubscriptionInput } from '../shared/api'
+import { COMPONENT_PERIODS, type ComponentInput, type EntryInput, type GoalInput, type PushSubscriptionInput } from '../shared/api'
 import { daysBetween, isIsoDate } from '../shared/dates'
 import { LIMITS } from '../shared/limits'
 
@@ -63,6 +63,7 @@ function parseComponent(value: unknown): ComponentInput {
     unit: text(body.unit, 'Unit', LIMITS.unit),
     target: positiveNumber(body.target, 'Target', LIMITS.target),
     weight: positiveNumber(body.weight, 'Share of goal', LIMITS.amount),
+    period: COMPONENT_PERIODS.find((p) => p === body.period) ?? 'day',
   }
 }
 

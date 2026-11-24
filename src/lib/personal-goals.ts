@@ -1,44 +1,42 @@
-import type { GoalDetail, GroupDetail } from '$shared/api'
-import { addDays, dateMs, todayIn } from '$shared/dates'
+import type { Component, ComponentPeriod, GoalDetail, GroupDetail } from '$shared/api'
+import { addDays, dateMs, daysBetween, todayIn } from '$shared/dates'
 import { goalProgress } from './progress'
 
-const ACTIVITIES = [
-  { label: 'pushups', names: ['pushup', 'pushups'], weekly: false },
-  { label: 'situps', names: ['situp', 'situps'], weekly: false },
-  { label: 'miles', names: ['run', 'running'], weekly: true },
-  { label: 'squats', names: ['squat', 'squats'], weekly: false },
-] as const
+const FLOAT_PRECISION = 1e6
+const WHOLE_UNIT_FROM = 10
+const DAYS_PER_WEEK = 7
 
-export function personalGoals(group: GroupDetail, goal: GoalDetail, userId: string, now: Date) {
+const PERIOD_LABELS: Record<ComponentPeriod, string> = { day: 'today', week: 'this week', month: 'this month' }
+
+const clean = (n: number) => Math.round(n * FLOAT_PRECISION) / FLOAT_PRECISION
+const roundUp = (n: number) => (n >= WHOLE_UNIT_FROM ? Math.ceil(n) : Math.ceil(n * 10) / 10)
+
+function periodRange(period: ComponentPeriod, today: string): { start: string; days: number } {
+  if (period === 'day') return { start: today, days: 1 }
+  if (period === 'week') return { start: addDays(today, -((new Date(dateMs(today)).getUTCDay() + 6) % 7)), days: DAYS_PER_WEEK }
+  const start = `${today.slice(0, 8)}01`
+  const date = new Date(dateMs(start))
+  const nextMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1)).toISOString().slice(0, 10)
+  return { start, days: daysBetween(start, nextMonth) }
+}
+
+export type PersonalGoal = { component: Component; period: string; target: number; logged: number; remaining: number; done: boolean }
+
+export function personalGoals(group: GroupDetail, goal: GoalDetail, userId: string, now: Date): PersonalGoal[] {
   const today = todayIn(group.timezone, now)
-  // achievementsEnabled identifies the existing DG group by its persisted ID.
-  if (!group.achievementsEnabled || goal.archived || !group.members.some((m) => m.id === userId)
-    || today < goal.startDate || today > goal.endDate) return []
+  if (goal.archived || !group.members.some((m) => m.id === userId) || today < goal.startDate || today > goal.endDate) return []
 
   const progress = goalProgress(goal, group.timezone, now)
-  const monday = addDays(today, -((new Date(dateMs(today)).getUTCDay() + 6) % 7))
-
-  return ACTIVITIES.flatMap((activity) => {
-    const components = goal.components.filter((c) => {
-      const name = c.name.toLowerCase().replace(/[\s_-]/g, '')
-      return (activity.names as readonly string[]).includes(name)
-        && (!activity.weekly || ['mi', 'mile', 'miles'].includes(c.unit.toLowerCase().trim()))
-    })
-    if (!components.length) return []
-    const ids = new Set(components.map((c) => c.id))
-    // Share the group card's current pace; only this period's personal logs are deducted.
-    const target = progress.components
-      .filter((item) => ids.has(item.component.id))
-      .reduce((sum, item) => sum + item.neededPerDay, 0)
-      / group.members.length * (activity.weekly ? 7 : 1)
-    const start = activity.weekly ? monday : today
-    const logged = goal.entries
-      .filter((e) => e.userId === userId && ids.has(e.componentId)
-        && e.date >= start && e.date >= goal.startDate && e.date <= today)
-      .reduce((sum, e) => sum + e.amount, 0)
-    const remaining = Math.max(0, Math.round((target - logged) * 1e6) / 1e6)
-    const roundUp = (n: number) => (activity.weekly ? Math.ceil(n * 10) / 10 : Math.ceil(n))
-    return [{ position: goal.components.indexOf(components[0]), label: activity.label, period: activity.weekly ? 'this week' : 'today',
-      target: roundUp(target), logged, remaining: roundUp(remaining) }]
-  }).filter((t) => t.target > 0).sort((a, b) => a.position - b.position)
+  return progress.components.flatMap(({ component, neededPerDay }) => {
+    const { start, days } = periodRange(component.period, today)
+    const target = roundUp(clean((neededPerDay / group.members.length) * days))
+    if (target === 0) return []
+    const logged = clean(
+      goal.entries
+        .filter((e) => e.userId === userId && e.componentId === component.id && e.date >= start && e.date >= goal.startDate && e.date <= today)
+        .reduce((sum, e) => sum + e.amount, 0),
+    )
+    const remaining = clean(Math.max(0, target - logged))
+    return [{ component, period: PERIOD_LABELS[component.period], target, logged, remaining, done: remaining === 0 }]
+  })
 }
