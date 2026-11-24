@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Component, Entry, Member } from '$shared/api'
-import { creditEntries, cumulativeByMember, dailyGroupProgress, dateRange, goalProgress, memberScores, periodRange, rankBy } from './progress'
+import { creditEntries, cumulativeByMember, dailyGroupProgress, dateRange, entryLines, goalProgress, memberScores, periodRange, rankBy } from './progress'
 
 const pushups: Component = { id: 'p', name: 'Pushups', unit: 'reps', target: 10000, weight: 50, period: 'day' }
 const miles: Component = { id: 'm', name: 'Run', unit: 'miles', target: 50, weight: 50, period: 'day' }
@@ -11,8 +11,7 @@ let nextId = 0
 const entry = (userId: string, componentId: string, amount: number, date = '2026-12-02'): Entry => ({
   id: String(nextId++),
   userId,
-  componentId,
-  amount,
+  amounts: [{ componentId, amount }],
   date,
   note: null,
   occurredAt: 0,
@@ -101,14 +100,13 @@ describe('memberScores and rankBy', () => {
     ])
   })
 
-  it('credits only logs that fill a component target, in date order', () => {
+  it('credits only logs that fill a component target, in date order, line by line', () => {
     const smallPushups = { ...pushups, target: 100, weight: 75 }
     const smallRun = { ...miles, target: 10, weight: 25 }
     const entries = [
       entry('c', 'p', 10, '2026-12-03'),
       entry('b', 'p', 60, '2026-12-02'),
-      entry('a', 'p', 60, '2026-12-01'),
-      entry('a', 'm', 5, '2026-12-01'),
+      { ...entry('a', 'p', 60, '2026-12-01'), amounts: [{ componentId: 'p', amount: 60 }, { componentId: 'm', amount: 5 }] },
       entry('c', 'm', 5, '2026-11-30'),
     ]
     const board = score([smallPushups, smallRun], entries)
@@ -129,7 +127,7 @@ describe('chart series', () => {
     const days = dateRange('2026-12-01', '2026-12-03')
     const series = cumulativeByMember(
       [{ id: 'a', name: 'Ana', avatarUrl: null, joinedAt: 0, isAdmin: false }],
-      [entry('a', 'p', 10, '2026-12-01'), entry('a', 'p', 5, '2026-12-03'), entry('a', 'p', 99, '2026-11-30'), entry('a', 'p', 1, '2026-12-09')],
+      entryLines([entry('a', 'p', 10, '2026-12-01'), entry('a', 'p', 5, '2026-12-03'), entry('a', 'p', 99, '2026-11-30'), entry('a', 'p', 1, '2026-12-09')]),
       days,
       (e) => e.amount,
     )

@@ -15,3 +15,10 @@ export const unitSingular = (unit: string) => unitFor(unit, SINGULAR)
 export const unitPlural = (unit: string) => unitFor(unit, PLURAL)
 
 export const formatAmount = (amount: number, unit: string) => `${formatNumber(amount)} ${unitFor(unit, amount)}`
+
+export type ActivityLine = { amount: number; unit: string; name: string }
+
+export const activityList = new Intl.ListFormat('en')
+
+export const describeActivity = (lines: ActivityLine[]) =>
+  activityList.format(lines.map((line) => `${formatAmount(line.amount, line.unit)} ${line.name.toLowerCase()}`))

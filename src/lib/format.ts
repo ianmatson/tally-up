@@ -1,8 +1,15 @@
-import type { Member } from '$shared/api'
+import type { Component, EntryAmount, Member } from '$shared/api'
 import { addDays, dateMs, daysBetween } from '$shared/dates'
 import { firstName, formatNumber } from '$shared/format'
+import type { ActivityLine } from '$shared/units'
 
 export { firstName, formatNumber }
+
+export const activityLines = (amounts: EntryAmount[], componentsById: Map<string, Component>): ActivityLine[] =>
+  amounts.flatMap(({ componentId, amount }) => {
+    const component = componentsById.get(componentId)
+    return component ? [{ amount, unit: component.unit, name: component.name }] : []
+  })
 
 const percentFormat = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0 })
 const shareFormat = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 1 })

@@ -17,7 +17,7 @@ const goal: GoalDetail = {
   ], entries: [],
 }
 const entry = (componentId: string, amount: number, date: string, userId = 'a'): Entry => ({
-  id: `${componentId}-${date}-${userId}`, componentId, amount, date, userId,
+  id: `${componentId}-${date}-${userId}`, amounts: [{ componentId, amount }], date, userId,
   note: null, occurredAt: 0, createdAt: 0, photoUrl: null, reactions: [], comments: [],
 })
 const now = new Date('2026-11-25T18:00:00Z')

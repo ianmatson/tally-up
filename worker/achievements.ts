@@ -8,7 +8,7 @@ export const ACHIEVEMENT_SQL = [
         SELECT DISTINCT g.group_id, e.user_id, e.date
         FROM entries e JOIN goals g ON g.id = e.goal_id
         JOIN achievement_groups ag ON ag.group_id = g.group_id
-        WHERE e.goal_id = ?1 AND e.amount > 0 AND e.date BETWEEN g.start_date AND g.end_date
+        WHERE e.goal_id = ?1 AND e.date BETWEEN g.start_date AND g.end_date
       ), streaks AS (
         SELECT group_id, user_id, COUNT(*) AS days FROM (
           SELECT group_id, user_id, julianday(date) - ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date) AS island FROM days

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { formatAmount } from '$shared/units'
   import ArrowUpIcon from '@lucide/svelte/icons/arrow-up'
   import PencilIcon from '@lucide/svelte/icons/pencil'
   import Trash2Icon from '@lucide/svelte/icons/trash-2'
@@ -8,7 +7,8 @@
   import type { Comment, Entry, GoalDetail, GroupDetail, User } from '$shared/api'
   import { LIMITS } from '$shared/limits'
   import { api } from '$lib/api'
-  import { formatDateTime, formatNumber, formatWhen, memberLabel } from '$lib/format'
+  import { activityLines, formatDateTime, formatWhen, memberLabel } from '$lib/format'
+  import { describeActivity } from '$shared/units'
   import { goalQuery } from '$lib/queries'
   import { Button } from '$lib/components/ui/button'
   import * as Drawer from '$lib/components/ui/drawer'
@@ -30,7 +30,7 @@
 
   const queryClient = useQueryClient()
   const membersById = $derived(new Map(group.members.map((m) => [m.id, m])))
-  const component = $derived(goal.components.find((c) => c.id === entry?.componentId))
+  const componentsById = $derived(new Map(goal.components.map((c) => [c.id, c])))
   const canEdit = $derived(!!entry && !goal.archived && (entry.userId === user.id || group.isAdmin))
 
   let draft = $state('')
@@ -95,8 +95,7 @@
             <UserAvatar name={owner?.name ?? '?'} avatarUrl={owner?.avatarUrl ?? null} tone={entry.userId === user.id ? 'highlight' : 'muted'} />
             <div class="min-w-0">
               <Drawer.Title class="text-base font-semibold tracking-tight">
-                {authorName(entry.userId)} logged {component ? formatAmount(entry.amount, component.unit) : formatNumber(entry.amount)}
-                {component?.name.toLowerCase()}
+                {authorName(entry.userId)} logged {describeActivity(activityLines(entry.amounts, componentsById))}
               </Drawer.Title>
               <Drawer.Description>{formatDateTime(entry.occurredAt)}</Drawer.Description>
             </div>

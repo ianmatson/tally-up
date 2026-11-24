@@ -10,6 +10,7 @@ import type {
   Component,
   ComponentInput,
   Entry,
+  EntryAmount,
   EntryInput,
   GoalDetail,
   GoalSummary,
@@ -22,10 +23,11 @@ import type {
 } from '../shared/api'
 import { todayIn } from '../shared/dates'
 import { firstName } from '../shared/format'
-import { formatAmount } from '../shared/units'
+import { type ActivityLine, describeActivity } from '../shared/units'
 import { normalizeReaction } from '../shared/social'
 import { type AppEnv, currentUser } from './auth'
 import { notifyUsers, type PushPayload } from './notifications'
+import { CLEAR_AMOUNTS_SQL, DELETE_EMPTY_ENTRIES_SQL, ENTRY_ACTIVITY_SQL, GOAL_COMPONENT_COUNT_SQL, INSERT_AMOUNTS_SQL } from './entries'
 import { DETACH_PHOTO_SQL, INSERT_PHOTO_SQL, MEMBER_PHOTO_SQL, PHOTO_MAX_BYTES, PHOTO_PATH, PHOTO_TYPE } from './photos'
 import { profile } from './profile'
 import {
@@ -115,8 +117,9 @@ async function loggableDate(db: D1Database, goal: GoalAccessRow, input: EntryInp
   if (input.occurredAt > Date.now() + CLOCK_SKEW_MS) badRequest('You cannot log progress in the future')
   const date = todayIn(goal.timezone, new Date(input.occurredAt))
   if (date < goal.start_date || date > goal.end_date) badRequest('The date must be inside the goal period')
-  const component = await db.prepare('SELECT 1 FROM components WHERE id = ? AND goal_id = ?').bind(input.componentId, goal.id).first()
-  if (!component) badRequest('That activity is not part of this goal')
+  const ids = JSON.stringify(input.amounts.map((line) => line.componentId))
+  const found = await db.prepare(GOAL_COMPONENT_COUNT_SQL).bind(goal.id, ids).first<{ n: number }>()
+  if (found?.n !== input.amounts.length) badRequest('That activity is not part of this goal')
   return date
 }
 
@@ -323,20 +326,27 @@ api.post('/groups/:groupId/goals', async (c) => {
   return c.json({ id: goalId }, 201)
 })
 
-type EntryRow = Omit<Entry, 'reactions' | 'comments'>
+type EntryRow = Omit<Entry, 'amounts' | 'reactions' | 'comments'>
 
 async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Promise<GoalDetail> {
   const refresh = achievementStatements(db, goalId)
-  const [access, components, entries, reactions, comments] = (await db.batch([
+  const [access, components, entries, amounts, reactions, comments] = (await db.batch([
     ...refresh,
     db.prepare(MEMBER_GOAL_SQL).bind(uid, goalId),
     db.prepare('SELECT id, name, unit, target, weight, period FROM components WHERE goal_id = ? ORDER BY position').bind(goalId),
     db
       .prepare(
-        `SELECT e.id, e.component_id AS componentId, e.user_id AS userId, e.amount, e.date, e.note, e.occurred_at AS occurredAt,
+        `SELECT e.id, e.user_id AS userId, e.date, e.note, e.occurred_at AS occurredAt,
            e.created_at AS createdAt, '${PHOTO_PATH}' || p.key AS photoUrl
          FROM entries e LEFT JOIN photos p ON p.entry_id = e.id
          WHERE e.goal_id = ? ORDER BY e.created_at DESC`,
+      )
+      .bind(goalId),
+    db
+      .prepare(
+        `SELECT a.entry_id AS entryId, a.component_id AS componentId, a.amount FROM entry_amounts a
+         JOIN entries e ON e.id = a.entry_id JOIN components c ON c.id = a.component_id
+         WHERE e.goal_id = ? ORDER BY c.position`,
       )
       .bind(goalId),
     db
@@ -359,6 +369,12 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
     list.push(comment)
     commentsByEntry.set(entryId, list)
   }
+  const amountsByEntry = new Map<string, EntryAmount[]>()
+  for (const { entryId, ...line } of amounts.results as (EntryAmount & { entryId: string })[]) {
+    const list = amountsByEntry.get(entryId) ?? []
+    list.push(line)
+    amountsByEntry.set(entryId, list)
+  }
   const reactionsByEntry = new Map<string, Map<string, string[]>>()
   for (const r of reactions.results as { entryId: string; emoji: string; userId: string }[]) {
     const byEmoji = reactionsByEntry.get(r.entryId) ?? new Map<string, string[]>()
@@ -370,6 +386,7 @@ async function loadGoalDetail(db: D1Database, goalId: string, uid: string): Prom
     components: components.results as Component[],
     entries: (entries.results as EntryRow[]).map((entry) => ({
       ...entry,
+      amounts: amountsByEntry.get(entry.id) ?? [],
       reactions: [...(reactionsByEntry.get(entry.id) ?? new Map()).entries()].map(([emoji, userIds]) => ({ emoji, userIds })),
       comments: commentsByEntry.get(entry.id) ?? [],
     })),
@@ -400,6 +417,7 @@ api.put('/goals/:goalId', async (c) => {
             .bind(comp.name, comp.unit, comp.target, comp.weight, comp.period ?? null, position, comp.id, goal.id)
         : insertComponent(db, goal.id, comp, position),
     ),
+    db.prepare(DELETE_EMPTY_ENTRIES_SQL).bind(goal.id),
   ])
   return c.json(await loadGoalDetail(db, goal.id, userId(c)))
 })
@@ -411,13 +429,13 @@ api.post('/goals/:goalId/entries', async (c) => {
   const date = await loggableDate(c.env.DB, goal, input)
   const id = crypto.randomUUID()
   await c.env.DB.batch([c.env.DB.prepare(
-    `INSERT INTO entries (id, goal_id, component_id, user_id, amount, date, occurred_at, note, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    'INSERT INTO entries (id, goal_id, user_id, date, occurred_at, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
   )
-    .bind(id, goal.id, input.componentId, userId(c), input.amount, date, input.occurredAt, input.note, Date.now()),
+    .bind(id, goal.id, userId(c), date, input.occurredAt, input.note, Date.now()),
+    c.env.DB.prepare(INSERT_AMOUNTS_SQL).bind(id, JSON.stringify(input.amounts)),
     ...achievementStatements(c.env.DB, goal.id),
   ])
-  inBackground(c, notifyContribution(c, goal, id, input))
+  inBackground(c, notifyContribution(c, goal, id, input.note))
   return c.json({ id }, 201)
 })
 
@@ -425,8 +443,10 @@ api.put('/entries/:entryId', async (c) => {
   const goal = await editableEntry(c.env.DB, c.req.param('entryId'), userId(c))
   const input = parseEntry(await c.req.json())
   const date = await loggableDate(c.env.DB, goal, input)
-  await c.env.DB.batch([c.env.DB.prepare('UPDATE entries SET component_id = ?, amount = ?, date = ?, occurred_at = ?, note = ? WHERE id = ?')
-    .bind(input.componentId, input.amount, date, input.occurredAt, input.note, goal.entry_id),
+  await c.env.DB.batch([c.env.DB.prepare('UPDATE entries SET date = ?, occurred_at = ?, note = ? WHERE id = ?')
+    .bind(date, input.occurredAt, input.note, goal.entry_id),
+    c.env.DB.prepare(CLEAR_AMOUNTS_SQL).bind(goal.entry_id),
+    c.env.DB.prepare(INSERT_AMOUNTS_SQL).bind(goal.entry_id, JSON.stringify(input.amounts)),
     ...achievementStatements(c.env.DB, goal.id),
   ])
   return c.body(null, 204)
@@ -471,22 +491,21 @@ api.get('/photos/:key', async (c) => {
   return c.body(photo.body, 200, { 'content-type': PHOTO_TYPE, 'cache-control': 'private, max-age=31536000, immutable' })
 })
 
-async function notifyContribution(c: Context<AppEnv>, goal: GoalAccessRow, entryId: string, input: EntryInput) {
+async function notifyContribution(c: Context<AppEnv>, goal: GoalAccessRow, entryId: string, note: string | null) {
   const db = c.env.DB
-  const [component, group, members] = await db.batch([
-    db.prepare('SELECT name, unit FROM components WHERE id = ?').bind(input.componentId),
+  const [lines, group, members] = await db.batch([
+    db.prepare(ENTRY_ACTIVITY_SQL).bind(entryId),
     db.prepare('SELECT name FROM groups WHERE id = ?').bind(goal.group_id),
     db.prepare('SELECT user_id FROM memberships WHERE group_id = ? AND user_id != ?').bind(goal.group_id, userId(c)),
   ])
-  const { name, unit } = component.results[0] as { name: string; unit: string }
   const groupName = (group.results[0] as { name: string }).name
   await notifyUsers(
     c.env,
     'contributions',
     (members.results as { user_id: string }[]).map((m) => m.user_id),
     {
-      title: `${firstName(c.get('user')!.name)} logged ${formatAmount(input.amount, unit)} ${name.toLowerCase()}`,
-      body: input.note ?? groupName,
+      title: `${firstName(c.get('user')!.name)} logged ${describeActivity(lines.results as ActivityLine[])}`,
+      body: note ?? groupName,
       url: `/g/${goal.group_id}?entry=${entryId}`,
       tag: `contribution-${goal.group_id}-${userId(c)}`,
     },
@@ -497,20 +516,15 @@ type SocialEntryRow = {
   id: string
   user_id: string
   owner_name: string
-  amount: number
   group_id: string
-  component_name: string
-  unit: string
 }
 
 async function memberEntry(db: D1Database, entryId: string, uid: string): Promise<SocialEntryRow> {
   const row = await db
     .prepare(
-      `SELECT e.id, e.user_id, u.name AS owner_name, e.amount, g.id AS group_id,
-         c.name AS component_name, c.unit
+      `SELECT e.id, e.user_id, u.name AS owner_name, g.id AS group_id
        FROM entries e
        JOIN users u ON u.id = e.user_id
-       JOIN components c ON c.id = e.component_id
        JOIN goals go ON go.id = e.goal_id
        JOIN groups g ON g.id = go.group_id
        JOIN memberships m ON m.group_id = g.id AND m.user_id = ?
@@ -534,10 +548,13 @@ api.post('/entries/:entryId/comments', async (c) => {
 
 async function notifyComment(c: Context<AppEnv>, entry: SocialEntryRow, body: string) {
   const actor = c.get('user')!
-  const { results } = await c.env.DB.prepare('SELECT DISTINCT user_id FROM comments WHERE entry_id = ? AND user_id NOT IN (?, ?)')
-    .bind(entry.id, actor.id, entry.user_id)
-    .all<{ user_id: string }>()
-  const activity = `${formatAmount(entry.amount, entry.unit)} ${entry.component_name.toLowerCase()}`
+  const db = c.env.DB
+  const [commenters, lines] = await db.batch([
+    db.prepare('SELECT DISTINCT user_id FROM comments WHERE entry_id = ? AND user_id NOT IN (?, ?)').bind(entry.id, actor.id, entry.user_id),
+    db.prepare(ENTRY_ACTIVITY_SQL).bind(entry.id),
+  ])
+  const results = commenters.results as { user_id: string }[]
+  const activity = describeActivity(lines.results as ActivityLine[])
   const payload = (title: string): PushPayload => ({
     title,
     body,

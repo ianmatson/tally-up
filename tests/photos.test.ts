@@ -25,7 +25,7 @@ beforeEach(() => {
   db.prepare("INSERT INTO goals (id, group_id, name, start_date, end_date, created_at) VALUES ('go', 'g', 'Goal', '2026-01-01', '2026-12-31', 0)").run()
   db.prepare("INSERT INTO components (id, goal_id, name, unit, target, weight, position) VALUES ('c', 'go', 'Run', 'mi', 10, 1, 0)").run()
   for (const entry of ['e1', 'e2'])
-    db.prepare("INSERT INTO entries (id, goal_id, component_id, user_id, amount, date, note, created_at) VALUES (?, 'go', 'c', 'a', 1, '2026-06-01', NULL, 0)").run(entry)
+    db.prepare("INSERT INTO entries (id, goal_id, user_id, date, note, created_at) VALUES (?, 'go', 'a', '2026-06-01', NULL, 0)").run(entry)
 })
 afterEach(() => db.close())
 
