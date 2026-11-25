@@ -13,9 +13,10 @@
 
 <nav class="fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-label="Group sections">
   <div
-    class="relative mx-auto grid h-14 max-w-md items-center rounded-full bg-nav p-1.5 shadow-[0_8px_30px_rgb(0_0_0/0.12)] ring-1 ring-border/60 dark:shadow-[0_8px_30px_rgb(0_0_0/0.5)]"
+    class="relative mx-auto grid h-14 max-w-md items-center rounded-full bg-nav/85 p-1.5 backdrop-blur-xl backdrop-saturate-150 shadow-[0_8px_30px_rgb(0_0_0/0.12)] ring-1 ring-border/60 dark:shadow-[0_8px_30px_rgb(0_0_0/0.5)]"
     style="grid-template-columns: repeat({slots.length}, minmax(0, 1fr))"
   >
+    <div class="noise pointer-events-none absolute inset-0 rounded-full opacity-30" aria-hidden="true"></div>
     {#if activeIndex >= 0}
       <div
         class="absolute inset-y-1.5 left-1.5 rounded-full bg-primary transition-transform duration-300 ease-out-quint"
