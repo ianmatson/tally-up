@@ -58,19 +58,16 @@
   }
 
   .float {
-    animation: float 6s ease-in-out infinite alternate;
+    animation: float 2.4s ease-in-out 2;
   }
 
   .float-late {
-    animation-delay: -3s;
+    animation-delay: -1.2s;
   }
 
   @keyframes float {
-    from {
-      transform: translateY(-5px);
-    }
-    to {
-      transform: translateY(5px);
+    50% {
+      transform: translateY(-6px);
     }
   }
 </style>
