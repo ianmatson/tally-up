@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
 import { readFileSync, readdirSync } from 'node:fs'
-import { ACHIEVEMENT_SQL, EQUIP_TITLE_SQL, GROUP_TITLES_SQL } from '../worker/achievements'
+import { ACHIEVEMENT_SQL, GROUP_TITLES_SQL } from '../worker/achievements'
 import { addDays } from '../shared/dates'
 import { currentStreak } from '../shared/achievements'
 
@@ -77,10 +77,20 @@ describe('permanent titles', () => {
     db.exec(migration)
     expect(titles()).toEqual(['acolyte', 'disciple', 'initiate'])
   })
-  it('only allows earned titles to be equipped via the database constraint', () => {
+  it('automatically exposes only the highest rank despite an older saved preference', () => {
+    const current = () => db.prepare(GROUP_TITLES_SQL).all('group')
+    expect(current()).toEqual([])
     log()
-    expect(() => db.exec("INSERT INTO group_title_preferences VALUES ('group', 'a', 'legend')")).toThrow()
     db.exec("INSERT INTO group_title_preferences VALUES ('group', 'a', 'initiate')")
+    for (let day = 1; day < 28; day++) {
+      log('a', 10, addDays('2026-11-23', day))
+      const expected = day >= 27 ? 'legend' : day >= 13 ? 'veteran' : day >= 6 ? 'disciple' : day >= 2 ? 'acolyte' : 'initiate'
+      expect(current()).toEqual([{ userId: 'a', titleId: expected, earnedAt: expect.any(Number) }])
+    }
+    db.exec('DELETE FROM entries'); refresh()
+    expect(current()).toEqual([{ userId: 'a', titleId: 'legend', earnedAt: expect.any(Number) }])
+    log('b')
+    expect(current()).toHaveLength(2)
   })
 })
 
@@ -109,10 +119,8 @@ describe('DG-only titles', () => {
     expect(titles()).toEqual(['initiate'])
     expect(db.prepare(GROUP_TITLES_SQL).all('outside')).toEqual([])
     expect(db.prepare(GROUP_TITLES_SQL).all('group')).toHaveLength(1)
-    expect(db.prepare(EQUIP_TITLE_SQL).run('outside', 'a', 'initiate').changes).toBe(0)
-    expect(db.prepare(EQUIP_TITLE_SQL).run('group', 'a', 'initiate').changes).toBe(1)
     db.exec("UPDATE memberships SET role = 'admin' WHERE group_id = 'group' AND user_id = 'b'; DELETE FROM memberships WHERE group_id = 'group' AND user_id = 'a'")
-    expect(db.prepare(EQUIP_TITLE_SQL).run('group', 'a', 'initiate').changes).toBe(0)
+    expect(db.prepare(GROUP_TITLES_SQL).all('group')).toEqual([])
   })
   it('keeps the restriction on the original group ID through renames and duplicate names', () => {
     db.exec("UPDATE groups SET name = 'Renamed DG' WHERE id = 'group'")
