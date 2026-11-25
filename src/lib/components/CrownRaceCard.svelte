@@ -1,9 +1,11 @@
 <script lang="ts">
+  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
   import CrownIcon from '@lucide/svelte/icons/crown'
   import type { GoalDetail, Member } from '$shared/api'
   import { formatAmount } from '$shared/units'
   import { type Standing, todaysStandings } from '$lib/crowns'
   import { formatCountdown, formatShare, memberLabel } from '$lib/format'
+  import { expand } from '$lib/motion'
   import { componentShares, type GoalProgress } from '$lib/progress'
   import { cn } from '$lib/utils'
 
@@ -15,28 +17,53 @@
     msLeft: number
   } = $props()
 
+  const PODIUM_SIZE = 3
+
+  let openId = $state<string | null>(null)
+
   const standings = $derived(todaysStandings(goal, progress.today))
   const shares = $derived(componentShares(goal.components))
   const rows = $derived([
-    { id: 'overall', name: 'Top contributor', standing: standings.overall, done: progress.complete, value: formatShare(standings.overall.contribution) },
-    ...progress.components.map(({ component, total }) => {
-      const standing = standings.byComponent.get(component.id)!
-      const amount = (standing.contribution / shares.get(component.id)!) * component.target
-      return { id: component.id, name: component.name, standing, done: total >= component.target, value: formatAmount(amount, component.unit) }
-    }),
+    { id: 'overall', name: 'Top contributor', places: standings.overall, done: progress.complete, format: formatShare },
+    ...progress.components.map(({ component, total }) => ({
+      id: component.id,
+      name: component.name,
+      places: standings.byComponent.get(component.id)!,
+      done: total >= component.target,
+      format: (contribution: number) => formatAmount((contribution / shares.get(component.id)!) * component.target, component.unit),
+    })),
   ])
 
   const listFormat = new Intl.ListFormat(undefined, { type: 'conjunction' })
+  const names = ({ userIds }: Standing) => userIds.map((id) => memberLabel(membersById, id, userId))
 
-  function leaders({ userIds }: Standing): string {
-    const names = userIds.map((id) => memberLabel(membersById, id, userId))
-    if (names.length === 1) return names[0] === 'You' ? 'You lead' : `${names[0]} leads`
-    return `${listFormat.format(names)} tied`
+  function leaders(standing: Standing): string {
+    const [name, ...others] = names(standing)
+    if (others.length) return `${listFormat.format([name, ...others])} tied`
+    return name === 'You' ? 'You lead' : `${name} leads`
   }
 
-  function status(standing: Standing, done: boolean): string {
-    if (standing.userIds.length === 0) return done ? 'Target reached' : 'No logs yet'
-    return done ? `${leaders(standing)} · target reached` : leaders(standing)
+  type Row = (typeof rows)[number]
+
+  function chaser({ places: [first, second], format }: Row): string {
+    if (!second) return ''
+    const label = listFormat.format(names(second))
+    return ` · ${label === 'You' ? "You're" : label} ${format(first.contribution - second.contribution)} behind`
+  }
+
+  function status(row: Row): string {
+    if (row.places.length === 0) return row.done ? 'Target reached' : 'No logs yet'
+    return `${leaders(row.places[0])}${chaser(row)}${row.done ? ' · target reached' : ''}`
+  }
+
+  function podium(places: Standing[]) {
+    const ranked: { id: string; rank: number; contribution: number }[] = []
+    for (const { userIds, contribution } of places) {
+      if (ranked.length >= PODIUM_SIZE) break
+      const rank = ranked.length + 1
+      ranked.push(...userIds.map((id) => ({ id, rank, contribution })))
+    }
+    return ranked
   }
 </script>
 
@@ -48,19 +75,43 @@
   <p class="mt-1 text-xs text-muted-foreground">Whoever leads when the timer ends wins. Ties win nothing.</p>
   <ul class="mt-2 divide-y">
     {#each rows as row (row.id)}
-      {@const mine = row.standing.userIds.length === 1 && row.standing.userIds[0] === userId}
-      <li class="flex items-center gap-3 py-2.5">
-        <span
-          class={cn('grid size-7 shrink-0 place-items-center rounded-full', mine ? 'bg-highlight text-highlight-foreground' : 'bg-secondary text-muted-foreground')}
-          aria-hidden="true"
+      {@const leader = row.places[0]}
+      {@const mine = leader?.userIds.length === 1 && leader.userIds[0] === userId}
+      {@const open = !!leader && openId === row.id}
+      <li>
+        <button
+          type="button"
+          class="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors enabled:hover:bg-accent"
+          aria-expanded={leader ? open : undefined}
+          disabled={!leader}
+          onclick={() => (openId = open ? null : row.id)}
         >
-          <CrownIcon class="size-3.5" />
-        </span>
-        <div class="min-w-0 flex-1 leading-tight">
-          <div class="truncate text-sm font-medium">{row.name}</div>
-          <div class="text-xs text-muted-foreground">{status(row.standing, row.done)}</div>
-        </div>
-        {#if row.standing.userIds.length}<span class="tabular shrink-0 text-sm font-semibold">{row.value}</span>{/if}
+          <span
+            class={cn('grid size-7 shrink-0 place-items-center rounded-full', mine ? 'bg-highlight text-highlight-foreground' : 'bg-secondary text-muted-foreground')}
+            aria-hidden="true"
+          >
+            <CrownIcon class="size-3.5" />
+          </span>
+          <span class="min-w-0 flex-1 leading-tight">
+            <span class="block truncate text-sm font-medium">{row.name}</span>
+            <span class="block text-xs text-muted-foreground">{status(row)}</span>
+          </span>
+          {#if leader}
+            <span class="tabular shrink-0 text-sm font-semibold">{row.format(leader.contribution)}</span>
+            <ChevronDownIcon class={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')} aria-hidden="true" />
+          {/if}
+        </button>
+        {#if open}
+          <ol class="flex flex-col gap-1.5 pb-3 pl-10" aria-label="{row.name} top {PODIUM_SIZE}" transition:expand>
+            {#each podium(row.places) as place (place.id)}
+              <li class={cn('flex items-center gap-3 text-sm', place.id === userId && 'font-medium')}>
+                <span class="tabular w-3 text-xs text-muted-foreground">{place.rank}</span>
+                <span class="min-w-0 flex-1 truncate">{memberLabel(membersById, place.id, userId)}</span>
+                <span class="tabular shrink-0 text-muted-foreground">{row.format(place.contribution)}</span>
+              </li>
+            {/each}
+          </ol>
+        {/if}
       </li>
     {/each}
   </ul>
