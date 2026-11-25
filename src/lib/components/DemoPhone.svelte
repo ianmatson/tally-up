@@ -60,7 +60,7 @@
         </div>
       {/each}
     </div>
-    <div class="mt-auto grid h-12 grid-cols-5 items-center rounded-full bg-card p-1 text-[0.7rem] font-medium text-muted-foreground shadow-[0_6px_20px_rgb(0_0_0/0.08)]">
+    <div class="mt-auto grid h-12 grid-cols-5 items-center rounded-full bg-secondary p-1 ring-1 ring-border/60 text-[0.7rem] font-medium text-muted-foreground shadow-[0_6px_20px_rgb(0_0_0/0.08)]">
       <span class="grid h-full place-items-center rounded-full bg-primary text-primary-foreground">Home</span>
       <span class="text-center">Feed</span>
       <span class="mx-auto grid size-9 place-items-center rounded-full bg-highlight text-lg text-highlight-foreground">+</span>
