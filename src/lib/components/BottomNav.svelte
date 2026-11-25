@@ -13,7 +13,7 @@
 
 <nav class="fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-label="Group sections">
   <div
-    class="relative mx-auto grid h-14 max-w-md items-center rounded-full bg-secondary p-1.5 shadow-[0_8px_30px_rgb(0_0_0/0.12)] ring-1 ring-border/60 dark:shadow-[0_8px_30px_rgb(0_0_0/0.5)]"
+    class="relative mx-auto grid h-14 max-w-md items-center rounded-full bg-nav p-1.5 shadow-[0_8px_30px_rgb(0_0_0/0.12)] ring-1 ring-border/60 dark:shadow-[0_8px_30px_rgb(0_0_0/0.5)]"
     style="grid-template-columns: repeat({slots.length}, minmax(0, 1fr))"
   >
     {#if activeIndex >= 0}
@@ -29,7 +29,7 @@
           href={slot.href}
           class={cn(
             'relative z-10 grid h-full place-items-center rounded-full text-[0.8rem] font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground',
-            i === activeIndex ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+            i === activeIndex ? 'text-primary-foreground' : 'text-foreground/70 hover:text-foreground',
           )}
           aria-current={i === activeIndex ? 'page' : undefined}
         >

@@ -27,6 +27,7 @@
 	--highlight: #f1f36e;
 	--highlight-foreground: #151515;
 	--hatch: #d6d4ce;
+	--nav: #d6d4cd;
 	--series-1: #2a78d6;
 	--series-2: #eb6834;
 	--series-3: #1baf7a;
@@ -61,6 +62,7 @@
 	--highlight: #f1f36e;
 	--highlight-foreground: #151515;
 	--hatch: #393935;
+	--nav: #383834;
 	--series-1: #3987e5;
 	--series-2: #d95926;
 	--series-3: #199e70;
@@ -77,6 +79,7 @@
 	--color-highlight: var(--highlight);
 	--color-highlight-foreground: var(--highlight-foreground);
 	--color-hatch: var(--hatch);
+	--color-nav: var(--nav);
 	--radius-card: 22px;
 	--color-ring: var(--ring);
 	--color-input: var(--input);
