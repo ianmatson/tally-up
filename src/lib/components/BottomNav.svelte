@@ -13,12 +13,13 @@
 
 <nav class="fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-label="Group sections">
   <div
-    class="relative mx-auto grid h-14 max-w-md items-center rounded-full bg-primary p-1.5 shadow-[0_8px_30px_rgb(0_0_0/0.12)] dark:shadow-[0_8px_30px_rgb(0_0_0/0.5)]"
+    class="relative mx-auto grid h-14 max-w-md items-center rounded-full bg-nav/85 p-1.5 backdrop-blur-xl backdrop-saturate-150 shadow-[0_8px_30px_rgb(0_0_0/0.12)] ring-1 ring-border/60 dark:shadow-[0_8px_30px_rgb(0_0_0/0.5)]"
     style="grid-template-columns: repeat({slots.length}, minmax(0, 1fr))"
   >
+    <div class="noise pointer-events-none absolute inset-0 rounded-full opacity-30" aria-hidden="true"></div>
     {#if activeIndex >= 0}
       <div
-        class="absolute inset-y-1.5 left-1.5 rounded-full bg-primary-foreground transition-transform duration-300 ease-out-quint"
+        class="absolute inset-y-1.5 left-1.5 rounded-full bg-primary transition-transform duration-300 ease-out-quint"
         style="width: calc((100% - 0.75rem) / {slots.length}); transform: translateX({activeIndex * 100}%)"
         aria-hidden="true"
       ></div>
@@ -28,8 +29,8 @@
         <a
           href={slot.href}
           class={cn(
-            'relative z-10 grid h-full place-items-center rounded-full text-[0.8rem] font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground',
-            i === activeIndex ? 'text-primary' : 'text-primary-foreground/75 hover:text-primary-foreground',
+            'relative z-10 grid h-full place-items-center rounded-full text-[0.8rem] font-medium transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground',
+            i === activeIndex ? 'text-primary-foreground' : 'text-foreground/70 hover:text-foreground',
           )}
           aria-current={i === activeIndex ? 'page' : undefined}
         >
@@ -38,7 +39,7 @@
       {:else}
         <div class="relative z-10 grid place-items-center">
           <button
-            class="grid size-11 place-items-center rounded-full bg-highlight text-highlight-foreground shadow-sm ring-1 ring-highlight-foreground/20 transition-transform duration-200 ease-spring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground active:scale-90 disabled:opacity-40"
+            class="grid size-11 place-items-center rounded-full bg-highlight text-highlight-foreground shadow-sm ring-1 ring-highlight-foreground/20 transition-transform duration-200 ease-spring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground active:scale-90 disabled:opacity-40"
             aria-label="Log progress"
             disabled={!canLog}
             onclick={onLog}
