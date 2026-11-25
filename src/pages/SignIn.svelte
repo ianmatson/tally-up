@@ -1,11 +1,10 @@
 <script lang="ts">
-  import ScaleIcon from '@lucide/svelte/icons/scale'
-  import TimerIcon from '@lucide/svelte/icons/timer'
-  import UsersIcon from '@lucide/svelte/icons/users'
   import MailIcon from '@lucide/svelte/icons/mail'
   import BrandMark from '$lib/components/BrandMark.svelte'
   import EmailSignIn from '$lib/components/EmailSignIn.svelte'
-  import DemoPhone from '$lib/components/DemoPhone.svelte'
+  import LandingFeatures from '$lib/components/LandingFeatures.svelte'
+  import LandingShowcase from '$lib/components/LandingShowcase.svelte'
+  import TallyGlyph from '$lib/components/TallyGlyph.svelte'
   import { Badge } from '$lib/components/ui/badge'
   import { Button } from '$lib/components/ui/button'
   import { resolveRoute, router } from '$lib/router.svelte'
@@ -14,11 +13,6 @@
   const isInvite = $derived(resolveRoute(router.url.pathname).name === 'join')
   let emailOpen = $state(false)
 
-  const FEATURES = [
-    { icon: UsersIcon, title: 'One goal, the whole crew', body: '10,000 pushups and 50 miles in December? Everyone chips in, and it only counts when the group finishes together.' },
-    { icon: TimerIcon, title: 'Know if you are on pace', body: 'One clear number tells you how many days ahead or behind the group is, and what it takes to catch up.' },
-    { icon: ScaleIcon, title: 'A leaderboard that is fair', body: 'Each activity is a set share of the goal, and logs past a target do not count, so everyone helps the group finish.' },
-  ]
 </script>
 
 <div class="min-h-dvh">
@@ -56,21 +50,29 @@
       <p class="mt-3 text-sm text-muted-foreground">Free for friend groups. No app to install.</p>
     </section>
 
-    <div class="rise-in flex justify-center [animation-delay:120ms] lg:justify-end">
-      <DemoPhone />
+    <div class="rise-in [animation-delay:120ms]">
+      <LandingShowcase />
     </div>
   </main>
 
-  <section class="mx-auto grid max-w-6xl gap-3 px-4 pb-16 sm:grid-cols-3 sm:px-6" aria-label="Features">
-    {#each FEATURES as feature (feature.title)}
-      <div class="rounded-card bg-card p-6">
-        <div class="mb-4 grid size-10 place-items-center rounded-full bg-highlight text-highlight-foreground">
-          <feature.icon class="size-5" />
+  <LandingFeatures />
+
+  <section class="mx-auto max-w-6xl px-4 pb-16 sm:px-6" aria-labelledby="cta-heading">
+    <div class="relative overflow-hidden rounded-[28px] bg-highlight p-8 text-highlight-foreground sm:p-12">
+      <TallyGlyph class="absolute -right-10 -bottom-14 size-72 opacity-10 sm:size-96" />
+      <div class="relative flex flex-col items-start gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 id="cta-heading" class="max-w-md text-3xl leading-tight font-semibold tracking-[-0.035em] sm:text-4xl">Your crew's next goal starts today.</h2>
+          <p class="mt-2 opacity-70">Free for friend groups. Set it up in a minute.</p>
         </div>
-        <h2 class="font-semibold tracking-tight">{feature.title}</h2>
-        <p class="mt-1.5 text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
+        <a
+          href="#sign-in"
+          class="inline-flex h-13 shrink-0 items-center rounded-full bg-highlight-foreground px-7 font-medium text-highlight transition-transform hover:-translate-y-0.5 active:translate-y-0"
+        >
+          Get started
+        </a>
       </div>
-    {/each}
+    </div>
   </section>
 
   <EmailSignIn bind:open={emailOpen} />
