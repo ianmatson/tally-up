@@ -54,11 +54,24 @@ describe('daily crowns', () => {
     expect(summary(crownTallies(goal(entries), '2026-12-10'))).toEqual({ a: { total: 2, overall: 1, p: 1 } })
   })
 
-  it("shows today's leaders and ties for each category", () => {
-    const entries = [entry('a', 'p', 10, '2026-12-05'), entry('b', 'p', 10, '2026-12-05'), entry('b', 'm', 1, '2026-12-05'), entry('a', 'm', 9, '2026-12-04')]
+  it("ranks today's places for each category and groups ties", () => {
+    const entries = [
+      entry('a', 'p', 10, '2026-12-05'),
+      entry('b', 'p', 10, '2026-12-05'),
+      entry('c', 'p', 4, '2026-12-05'),
+      entry('b', 'm', 1, '2026-12-05'),
+      entry('a', 'm', 9, '2026-12-04'),
+    ]
     const standings = todaysStandings(goal(entries), '2026-12-05')
-    expect(standings.overall).toEqual({ userIds: ['b'], contribution: 0.1 })
-    expect(standings.byComponent.get('p')).toEqual({ userIds: ['a', 'b'], contribution: 0.05 })
-    expect(standings.byComponent.get('m')).toEqual({ userIds: ['b'], contribution: 0.05 })
+    expect(standings.overall).toEqual([
+      { userIds: ['b'], contribution: 0.1 },
+      { userIds: ['a'], contribution: 0.05 },
+      { userIds: ['c'], contribution: 0.02 },
+    ])
+    expect(standings.byComponent.get('p')).toEqual([
+      { userIds: ['a', 'b'], contribution: 0.05 },
+      { userIds: ['c'], contribution: 0.02 },
+    ])
+    expect(standings.byComponent.get('m')).toEqual([{ userIds: ['b'], contribution: 0.05 }])
   })
 })

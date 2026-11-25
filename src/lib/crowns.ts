@@ -8,22 +8,22 @@ const TIE_PRECISION = 1e12
 
 export type Standing = { userIds: string[]; contribution: number }
 
-function dayLeaders(entries: CreditedEntry[]): Standing {
+function dayPlaces(entries: CreditedEntry[]): Standing[] {
   const totals = new Map<string, number>()
   for (const entry of entries) totals.set(entry.userId, (totals.get(entry.userId) ?? 0) + entry.contribution)
-  let best = 0
-  let userIds: string[] = []
+  const places = new Map<number, string[]>()
   for (const [userId, total] of totals) {
     const rounded = Math.round(total * TIE_PRECISION)
-    if (rounded > best) [best, userIds] = [rounded, [userId]]
-    else if (rounded === best && rounded > 0) userIds.push(userId)
+    if (rounded > 0) places.set(rounded, [...(places.get(rounded) ?? []), userId])
   }
-  return { userIds, contribution: best / TIE_PRECISION }
+  return [...places]
+    .sort(([a], [b]) => b - a)
+    .map(([rounded, userIds]) => ({ userIds, contribution: rounded / TIE_PRECISION }))
 }
 
 const soleLeader = (entries: CreditedEntry[]) => {
-  const { userIds } = dayLeaders(entries)
-  return userIds.length === 1 ? userIds[0] : null
+  const [first] = dayPlaces(entries)
+  return first?.userIds.length === 1 ? first.userIds[0] : null
 }
 
 const countedOn = (entries: CreditedEntry[], day: string) => entries.filter((e) => e.date === day && e.contribution > 0)
@@ -31,8 +31,8 @@ const countedOn = (entries: CreditedEntry[], day: string) => entries.filter((e) 
 export function todaysStandings(goal: Pick<GoalDetail, 'startDate' | 'endDate' | 'components' | 'entries'>, today: string) {
   const entries = countedOn(creditEntries(goal), today)
   return {
-    overall: dayLeaders(entries),
-    byComponent: new Map(goal.components.map((c) => [c.id, dayLeaders(entries.filter((e) => e.componentId === c.id))])),
+    overall: dayPlaces(entries),
+    byComponent: new Map(goal.components.map((c) => [c.id, dayPlaces(entries.filter((e) => e.componentId === c.id))])),
   }
 }
 
