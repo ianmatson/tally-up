@@ -1,20 +1,13 @@
 <script lang="ts">
-  import { createMutation, useQueryClient } from '@tanstack/svelte-query'
-  import { toast } from 'svelte-sonner'
-  import CheckIcon from '@lucide/svelte/icons/check'
   import CrownIcon from '@lucide/svelte/icons/crown'
   import type { GoalDetail, GroupDetail, Member } from '$shared/api'
-  import { TITLES, currentStreak, type TitleId } from '$shared/achievements'
-  import { api } from '$lib/api'
+  import { TITLES, currentStreak } from '$shared/achievements'
   import type { CrownTally } from '$lib/crowns'
-  import { cn } from '$lib/utils'
   import HatchTrack from './HatchTrack.svelte'
 
-  let { member, group, goal, tally, today, userId }: {
+  let { member, group, goal, tally, today }: {
     member: Member; group: GroupDetail; goal: GoalDetail | null; tally: CrownTally | undefined; today: string; userId: string
   } = $props()
-  const client = useQueryClient()
-  const isMe = $derived(member.id === userId)
   const crowns = $derived(
     tally && goal
       ? [
@@ -23,16 +16,9 @@
         ].filter((crown) => crown.count > 0)
       : [],
   )
-  const earned = $derived(new Set(group.earnedTitles?.filter((t) => t.userId === member.id).map((t) => t.titleId)))
+  const current = $derived(TITLES.find((t) => t.id === member.selectedTitle))
   const streak = $derived(currentStreak(goal?.entries.filter((e) => e.userId === member.id && e.date >= goal.startDate && e.date <= goal.endDate).map((e) => e.date) ?? [], today))
-  const next = $derived(TITLES.find((t) => !earned.has(t.id)))
-  const equip = createMutation(() => ({
-    mutationFn: (titleId: TitleId) => api(`/groups/${group.id}/title`, { method: 'PUT', body: { titleId } }),
-    onSuccess: () => {
-      client.invalidateQueries({ queryKey: ['group'] })
-      toast.success('Title updated')
-    },
-  }))
+  const next = $derived(TITLES.find((t) => t.days > (current?.days ?? 0)))
 </script>
 
 <div class="space-y-4 rounded-[14px] bg-secondary/60 px-4 py-3.5 text-sm">
@@ -57,38 +43,14 @@
 
   {#if group.achievementsEnabled}
     <section aria-label="Titles">
-      <h3 class="text-xs font-medium text-muted-foreground">Titles{isMe && earned.size ? ' · tap one to show it' : ''}</h3>
-      <ul class="mt-2 flex flex-wrap gap-1.5">
-        {#each TITLES as title (title.id)}
-          {@const unlocked = earned.has(title.id)}
-          {@const shown = member.selectedTitle === title.id}
-          <li>
-            {#if isMe && unlocked}
-              <button
-                type="button"
-                class={cn(
-                  'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium transition-colors disabled:opacity-60',
-                  shown ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-accent',
-                )}
-                aria-pressed={shown}
-                disabled={equip.isPending}
-                onclick={() => equip.mutate(title.id)}
-              >
-                {#if shown}<CheckIcon class="size-3" aria-hidden="true" />{/if}{title.name}
-              </button>
-            {:else}
-              <span
-                class={cn(
-                  'inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium',
-                  unlocked ? (shown ? 'bg-primary text-primary-foreground' : 'bg-card') : 'border border-dashed border-input text-muted-foreground',
-                )}
-              >
-                {title.name}{#if !unlocked}<span class="sr-only"> (locked)</span>{/if}
-              </span>
-            {/if}
-          </li>
-        {/each}
-      </ul>
+      <h3 class="text-xs font-medium text-muted-foreground">Current title</h3>
+      {#if current}
+        <span class="mt-2 inline-flex h-7 items-center rounded-full bg-primary px-2.5 text-xs font-medium text-primary-foreground">
+          {current.name}
+        </span>
+      {:else}
+        <p class="mt-1 text-muted-foreground">No title yet.</p>
+      {/if}
       {#if next}
         <div class="mt-3">
           <div class="flex items-baseline justify-between gap-3 text-xs">
@@ -98,7 +60,7 @@
           <div class="mt-1.5"><HatchTrack value={Math.min(streak, next.days) / next.days} size="sm" label="Progress toward {next.name}" /></div>
         </div>
       {:else}
-        <p class="mt-2 text-xs text-muted-foreground">Every title unlocked.</p>
+        <p class="mt-2 text-xs text-muted-foreground">Highest title earned.</p>
       {/if}
     </section>
   {/if}

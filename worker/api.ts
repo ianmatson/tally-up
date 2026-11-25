@@ -1,6 +1,6 @@
-import { achievementStatements, GROUP_TITLES_SQL, EQUIP_TITLE_SQL } from './achievements'
+import { achievementStatements, GROUP_TITLES_SQL } from './achievements'
 import { handOverSql, OWNER_TO_ACTOR_SQL, removeMemberSql, SET_ROLE_SQL } from './membership'
-import { TITLES, type EarnedTitle } from '../shared/achievements'
+import { type EarnedTitle } from '../shared/achievements'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
@@ -197,10 +197,7 @@ api.get('/groups/:groupId', async (c) => {
     db.prepare(MEMBER_GROUP_SQL).bind(userId(c), groupId),
     db
       .prepare(
-        `SELECT u.id, u.name, u.avatar_url AS avatarUrl, m.joined_at AS joinedAt, m.role = 'admin' AS isAdmin,
-          COALESCE((SELECT title_id FROM group_title_preferences WHERE user_id = u.id AND group_id = m.group_id),
-            (SELECT title_id FROM group_earned_titles WHERE user_id = u.id AND group_id = m.group_id ORDER BY CASE title_id
-              WHEN 'legend' THEN 28 WHEN 'veteran' THEN 14 WHEN 'disciple' THEN 7 WHEN 'acolyte' THEN 3 ELSE 1 END DESC LIMIT 1)) AS selectedTitle FROM users u JOIN memberships m ON m.user_id = u.id
+        `SELECT u.id, u.name, u.avatar_url AS avatarUrl, m.joined_at AS joinedAt, m.role = 'admin' AS isAdmin FROM users u JOIN memberships m ON m.user_id = u.id
          WHERE m.group_id = ? ORDER BY m.joined_at`,
       )
       .bind(groupId),
@@ -218,25 +215,13 @@ api.get('/groups/:groupId', async (c) => {
     members: (members.results as (Omit<Member, 'isAdmin'> & { isAdmin: number })[]).map((m) => ({
       ...m,
       isAdmin: m.isAdmin === 1,
-      selectedTitle: group.achievements_enabled === 1 ? m.selectedTitle : null,
+      selectedTitle: group.achievements_enabled === 1 ? (titles.results as EarnedTitle[]).find((t) => t.userId === m.id)?.titleId ?? null : null,
     })),
     achievementsEnabled: group.achievements_enabled === 1,
     earnedTitles: group.achievements_enabled === 1 ? titles.results as EarnedTitle[] : [],
     goals: (goals.results as GoalRow[]).map(toGoalSummary),
   }
   return c.json(detail)
-})
-
-api.put('/groups/:groupId/title', async (c) => {
-  const group = await memberGroup(c.env.DB, c.req.param('groupId'), userId(c))
-  if (group.achievements_enabled !== 1) notFound()
-  const body = await c.req.json<unknown>()
-  if (!body || typeof body !== 'object' || !('titleId' in body)) badRequest('Choose a valid title')
-  const titleId = body.titleId
-  if (typeof titleId !== 'string' || !TITLES.some((t) => t.id === titleId)) badRequest('Choose a valid title')
-  const result = await c.env.DB.prepare(EQUIP_TITLE_SQL).bind(group.id, userId(c), titleId).run()
-  if (!result.meta.changes) badRequest('You have not earned that title yet')
-  return c.body(null, 204)
 })
 
 api.patch('/groups/:groupId', async (c) => {
