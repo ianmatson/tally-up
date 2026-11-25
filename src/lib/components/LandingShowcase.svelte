@@ -9,7 +9,7 @@
 </script>
 
 <div class="relative mx-auto w-full max-w-[460px] py-6 lg:max-w-[540px]" aria-hidden="true">
-  <div class="glow absolute top-1/2 left-1/2 size-[380px] -translate-1/2 rounded-full bg-highlight blur-3xl"></div>
+  <div class="glow absolute top-1/2 left-1/2 aspect-square w-[min(380px,100%)] -translate-1/2 rounded-full bg-highlight blur-3xl"></div>
   <div class="hatched absolute top-10 right-0 size-40 rounded-full opacity-70 [mask-image:radial-gradient(circle,black,transparent_70%)]"></div>
 
   <div class="relative flex justify-center">

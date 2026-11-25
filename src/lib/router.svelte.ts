@@ -8,8 +8,9 @@ export function navigate(to: string, { replace = false } = {}) {
   history[replace ? 'replaceState' : 'pushState'](null, '', to)
   router.url = new URL(window.location.href)
   const anchor = window.location.hash && document.getElementById(window.location.hash.slice(1))
-  if (anchor) anchor.scrollIntoView({ behavior: 'smooth' })
-  else window.scrollTo(0, 0)
+  if (!anchor) return window.scrollTo(0, 0)
+  anchor.scrollIntoView({ behavior: 'smooth' })
+  anchor.focus({ preventScroll: true })
 }
 
 window.addEventListener('popstate', () => {

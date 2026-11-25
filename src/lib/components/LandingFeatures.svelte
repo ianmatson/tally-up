@@ -48,12 +48,12 @@
   </h2>
   <div class="mt-8 grid gap-3 md:grid-cols-2">
     <article class="feature">
-      <div class="visual">
+      <div class="visual" aria-hidden="true">
         <div class="mb-2 flex items-center justify-between text-xs">
           <span class="font-semibold">Group goal</span>
           <span class="rounded-full bg-highlight px-2 py-0.5 font-medium text-highlight-foreground">2.5 days ahead</span>
         </div>
-        <svg viewBox="0 0 270 100" class="w-full" aria-hidden="true">
+        <svg viewBox="0 0 270 100" class="w-full">
           <defs>
             <linearGradient id="landing-area" x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stop-color="var(--highlight)" stop-opacity="0.6" />
@@ -73,7 +73,7 @@
     </article>
 
     <article class="feature">
-      <div class="visual divide-y py-1.5">
+      <div class="visual divide-y py-1.5" aria-hidden="true">
         {#each CROWNS as crown (crown.name)}
           <div class="flex items-center gap-2.5 py-2">
             <span class="grid size-6 shrink-0 place-items-center rounded-full {crown.mine ? 'bg-highlight text-highlight-foreground' : 'bg-secondary text-muted-foreground'}">
@@ -92,7 +92,7 @@
     </article>
 
     <article class="feature">
-      <div class="visual">
+      <div class="visual" aria-hidden="true">
         <div class="flex items-start gap-2.5">
           <span class="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-[0.6rem] font-semibold text-muted-foreground">CP</span>
           <div class="min-w-0 flex-1 text-xs leading-relaxed">
@@ -114,7 +114,7 @@
     </article>
 
     <article class="feature">
-      <div class="visual flex flex-col gap-3">
+      <div class="visual flex flex-col gap-3" aria-hidden="true">
         <div class="flex flex-col gap-1.5">
           <div class="flex justify-between text-xs"><span class="font-medium">Run</span><span class="tabular text-muted-foreground">50 / 50 mi · done</span></div>
           <HatchTrack value={1} size="sm" label="Run" />
