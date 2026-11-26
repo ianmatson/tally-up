@@ -1,6 +1,5 @@
 <script lang="ts">
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
-  import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical'
   import type { Entry, GoalDetail, GroupDetail, User } from '$shared/api'
   import { addDays, daysBetween, msUntil } from '$shared/dates'
   import XIcon from '@lucide/svelte/icons/x'
@@ -176,8 +175,13 @@
             {#each leaderRows as row, i (row.item.member.id)}
               {@const isMe = row.item.member.id === user.id}
               {#if i === LEADER_PREVIEW && row !== ranked[LEADER_PREVIEW]}
-                <li class="flex w-4 justify-center text-muted-foreground" aria-hidden="true">
-                  <EllipsisVerticalIcon class="size-4" />
+                <li class="py-1.5 text-muted-foreground/50" aria-hidden="true">
+                  <svg class="block h-1.5 w-full">
+                    <pattern id="leader-gap" width="8" height="6" patternUnits="userSpaceOnUse">
+                      <path d="M0 5 4 1 8 5" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" />
+                    </pattern>
+                    <rect width="100%" height="100%" fill="url(#leader-gap)" />
+                  </svg>
                 </li>
               {/if}
               <li class="flex items-center gap-3 py-2">
