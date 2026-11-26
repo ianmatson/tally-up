@@ -172,8 +172,18 @@
             <PillTabs bind:value={leaderPeriod} label="Leaderboard period" options={PERIOD_OPTIONS} />
           </div>
           <ol class="flex flex-col">
-            {#each leaderRows as row (row.item.member.id)}
+            {#each leaderRows as row, i (row.item.member.id)}
               {@const isMe = row.item.member.id === user.id}
+              {#if i === LEADER_PREVIEW && row !== ranked[LEADER_PREVIEW]}
+                <li class="py-1.5 text-muted-foreground/50" aria-hidden="true">
+                  <svg class="block h-1.5 w-full">
+                    <pattern id="leader-gap" width="8" height="6" patternUnits="userSpaceOnUse">
+                      <path d="M0 5 4 1 8 5" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" />
+                    </pattern>
+                    <rect width="100%" height="100%" fill="url(#leader-gap)" />
+                  </svg>
+                </li>
+              {/if}
               <li class="flex items-center gap-3 py-2">
                 <span class="tabular w-4 text-center text-xs font-medium text-muted-foreground">{row.rank}</span>
                 <UserAvatar name={row.item.member.name} avatarUrl={row.item.member.avatarUrl} size="sm" tone={isMe ? 'highlight' : 'muted'} />
