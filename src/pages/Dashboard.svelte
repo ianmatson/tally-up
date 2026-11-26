@@ -1,5 +1,6 @@
 <script lang="ts">
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
+  import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical'
   import type { Entry, GoalDetail, GroupDetail, User } from '$shared/api'
   import { addDays, daysBetween, msUntil } from '$shared/dates'
   import XIcon from '@lucide/svelte/icons/x'
@@ -172,8 +173,13 @@
             <PillTabs bind:value={leaderPeriod} label="Leaderboard period" options={PERIOD_OPTIONS} />
           </div>
           <ol class="flex flex-col">
-            {#each leaderRows as row (row.item.member.id)}
+            {#each leaderRows as row, i (row.item.member.id)}
               {@const isMe = row.item.member.id === user.id}
+              {#if i === LEADER_PREVIEW && row !== ranked[LEADER_PREVIEW]}
+                <li class="flex w-4 justify-center text-muted-foreground" aria-hidden="true">
+                  <EllipsisVerticalIcon class="size-4" />
+                </li>
+              {/if}
               <li class="flex items-center gap-3 py-2">
                 <span class="tabular w-4 text-center text-xs font-medium text-muted-foreground">{row.rank}</span>
                 <UserAvatar name={row.item.member.name} avatarUrl={row.item.member.avatarUrl} size="sm" tone={isMe ? 'highlight' : 'muted'} />
