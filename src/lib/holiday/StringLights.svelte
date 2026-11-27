@@ -31,7 +31,7 @@
 
 <svelte:window bind:innerWidth={width} />
 
-<div class="pointer-events-none absolute inset-x-0 top-0 h-4 overflow-hidden" style="color: {dark ? WIRE_GREEN.dark : WIRE_GREEN.light}" aria-hidden="true">
+<div class="pointer-events-none fixed inset-x-0 top-[env(safe-area-inset-top)] z-40 h-4 overflow-hidden" style="color: {dark ? WIRE_GREEN.dark : WIRE_GREEN.light}" aria-hidden="true">
   <svg width={swags * SWAG_WIDTH} height="16" class="block">
     {#each COLORS as color, c (color)}
       <radialGradient id="string-lights-halo-{c}">

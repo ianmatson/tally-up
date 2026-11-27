@@ -5,12 +5,13 @@
   import { queryClient } from '$lib/queries'
   import { HOLIDAY_FLAIR } from '$lib/holiday/flag'
   import Snowfall from '$lib/holiday/Snowfall.svelte'
+  import StringLights from '$lib/holiday/StringLights.svelte'
   import Routes from './Routes.svelte'
 </script>
 
 <ModeWatcher themeColors={{ light: '#ecebe7', dark: '#121212' }} />
 <Toaster position="top-center" richColors />
-{#if HOLIDAY_FLAIR}<Snowfall />{/if}
+{#if HOLIDAY_FLAIR}<Snowfall /><StringLights />{/if}
 <QueryClientProvider client={queryClient}>
   <Routes />
 </QueryClientProvider>
