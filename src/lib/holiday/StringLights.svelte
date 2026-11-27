@@ -1,12 +1,12 @@
 <script lang="ts">
   import { mode } from 'mode-watcher'
 
-  const SWAG_WIDTH = 56
-  const SAG = 6
+  const SWAG_WIDTH = 40
+  const SAG = 3
   const WIRE_TOP = 1
-  const BULB_STOPS = [0.22, 0.5, 0.78]
+  const BULB_STOPS = [0.125, 0.375, 0.625, 0.875]
   const COLORS = ['#e5484d', '#ffc53d', '#30a46c', '#3e8ef7']
-  const TILT = 0.6
+  const TILT = 0.8
 
   let width = $state(0)
   const swags = $derived(Math.ceil(width / SWAG_WIDTH))
@@ -23,27 +23,26 @@
       })),
     ).flat(),
   )
-  const glow = $derived(mode.current === 'dark' ? 'url(#string-lights-glow)' : undefined)
 </script>
 
 <svelte:window bind:innerWidth={width} />
 
-<div class="pointer-events-none absolute inset-x-0 top-full h-6 overflow-hidden text-foreground" aria-hidden="true">
-  <svg width={swags * SWAG_WIDTH} height="24" class="block">
-    <filter id="string-lights-glow" x="-150%" y="-100%" width="400%" height="300%">
-      <feGaussianBlur stdDeviation="2.2" result="blur" />
-      <feMerge>
-        <feMergeNode in="blur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-    <path d={wire} fill="none" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.2" />
+<div class="pointer-events-none absolute inset-x-0 top-0 h-4 overflow-hidden text-foreground" aria-hidden="true">
+  <svg width={swags * SWAG_WIDTH} height="16" class="block">
+    {#each COLORS as color, c (color)}
+      <radialGradient id="string-lights-halo-{c}">
+        <stop offset="0%" stop-color={color} stop-opacity="0.55" />
+        <stop offset="100%" stop-color={color} stop-opacity="0" />
+      </radialGradient>
+    {/each}
+    <path d={wire} fill="none" stroke="currentColor" stroke-opacity="0.4" stroke-width="0.9" />
     {#each bulbs as bulb, i (i)}
       <g transform="translate({bulb.x} {bulb.y}) rotate({bulb.angle})">
-        <rect x="-1.8" y="0" width="3.6" height="3.4" rx="0.8" fill="currentColor" fill-opacity="0.55" />
+        <rect x="-1.1" y="0" width="2.2" height="2" rx="0.5" fill="currentColor" fill-opacity="0.55" />
         <g class="bulb" style="--delay: {-((i * 7) % 11) * 0.37}s; --duration: {2.6 + ((i * 5) % 7) * 0.3}s">
-          <ellipse cy="8" rx="3" ry="4.6" fill={COLORS[i % COLORS.length]} filter={glow} />
-          <ellipse cx="-1" cy="6.4" rx="0.8" ry="1.6" fill="white" fill-opacity="0.55" />
+          {#if mode.current === 'dark'}<circle cy="4.4" r="5" fill="url(#string-lights-halo-{i % COLORS.length})" />{/if}
+          <ellipse cy="4.4" rx="1.7" ry="2.6" fill={COLORS[i % COLORS.length]} />
+          <ellipse cx="-0.5" cy="3.6" rx="0.45" ry="0.9" fill="white" fill-opacity="0.55" />
         </g>
       </g>
     {/each}
