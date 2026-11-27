@@ -19,7 +19,8 @@
 </script>
 
 <header class="sticky top-0 z-30 bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-md">
-  <div class="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
+  {#if HOLIDAY_FLAIR}<StringLights />{/if}
+  <div class="relative mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
     <a href="/" class="flex items-center gap-2.5 rounded-full text-[0.95rem] font-semibold tracking-tight" aria-label="Tally Up home">
       <BrandMark />
       <span>Tally Up</span>
@@ -51,5 +52,4 @@
     {/if}
     <UserMenu {user} adminGroupId={currentGroup?.isAdmin ? currentGroup.id : null} />
   </div>
-  {#if HOLIDAY_FLAIR}<StringLights />{/if}
 </header>
