@@ -5,6 +5,8 @@
   import { createQuery } from '@tanstack/svelte-query'
   import type { User } from '$shared/api'
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
+  import { HOLIDAY_FLAIR } from '$lib/holiday/flag'
+  import StringLights from '$lib/holiday/StringLights.svelte'
   import { groupsQuery } from '$lib/queries'
   import { navigate } from '$lib/router.svelte'
   import BrandMark from './BrandMark.svelte'
@@ -49,4 +51,5 @@
     {/if}
     <UserMenu {user} adminGroupId={currentGroup?.isAdmin ? currentGroup.id : null} />
   </div>
+  {#if HOLIDAY_FLAIR}<StringLights />{/if}
 </header>
